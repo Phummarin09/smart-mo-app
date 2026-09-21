@@ -90,7 +90,7 @@ def save_to_history_json(df, inv_no, inv_date):
     # เซฟกลับลงไฟล์
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=4)
-# 3. Backend Engine: Load Master Data
+#3. Backend Engine: Load Master Data
 @st.cache_data
 def load_backend_master():
     master_path = "Master_Data_Casting.xlsx"
@@ -98,18 +98,14 @@ def load_backend_master():
         xls = pd.ExcelFile(master_path)
         df_items = pd.read_excel(xls, "Item_Master")
         df_alloc = pd.read_excel(xls, "Supplier_Allocation")
+        
+        # --- [เพิ่มใหม่] ล้างข้อมูล Code_CMA ให้สะอาดก่อนใช้งาน ---
+        if 'Code_CMA' in df_items.columns:
+            df_items['Code_CMA'] = df_items['Code_CMA'].astype(str).str.strip().str.lstrip('0')
+            
         return df_items, df_alloc
     return None, None
-
-master_items, master_alloc = load_backend_master()
-VENDOR_MAP = {
-    "PLTHE01": "TMY",
-    "PLPAI02": "PLM",
-    "PLALP01": "ALPS",
-    "PLYAG01": "YGT"
-}
-
-# 4. Parse Full 60 Items from CMV Invoice
+#4. Parse Full 60 Items from CMV Invoice
 def parse_full_invoice(file):
     xls = pd.ExcelFile(file)
     target_sheet = "IV" if "IV" in xls.sheet_names else xls.sheet_names[0]
@@ -117,6 +113,7 @@ def parse_full_invoice(file):
     
     iv_no = "CMV/INV26-106"
     iv_date = "2026-08-25"
+    
     for r in range(min(15, len(df_raw))):
         row_vals = [str(x) for x in df_raw.iloc[r].dropna().tolist()]
         for idx, val in enumerate(row_vals):
@@ -133,6 +130,10 @@ def parse_full_invoice(file):
             try:
                 item_no = int(val_0)
                 part_no = str(row[1]).strip() if pd.notna(row[1]) else ""
+                
+                # --- [เพิ่มใหม่] ล้างเลข 0 ด้านหน้าและช่องว่าง เพื่อเอาไปเทียบ ---
+                clean_part_no = part_no.lstrip('0').strip()
+                
                 desc = str(row[2]).strip() if pd.notna(row[2]) else ""
                 po = str(row[4]).strip() if pd.notna(row[4]) else ""
                 qty = int(row[5]) if pd.notna(row[5]) else 0
@@ -143,15 +144,18 @@ def parse_full_invoice(file):
                 default_allocated_qty = ""
                 
                 if master_items is not None:
-                    m = master_items[(master_items["Code_CMA"] == part_no) | (master_items["Item_Code"] == part_no)]
+                    # --- [แก้จุดเชื่อม] เอา clean_part_no ไปเทียบกับ Code_CMA และ Item_Code ---
+                    m = master_items[(master_items["Code_CMA"] == clean_part_no) | 
+                                     (master_items["Item_Code"] == clean_part_no)]
+                    
                     if not m.empty:
                         it_code = m.iloc[0]["Item_Code"]
                         alloc = master_alloc[master_alloc["Item_Code"] == it_code]
                         v_list = [VENDOR_MAP.get(x, x) for x in alloc["Supplier_Code"].unique()]
                         default_vendor = "/".join(v_list)
                         default_allocated_qty = str(qty)
-                
-                # Preset handwritten allocation values
+
+                # Preset handwritten allocation values (เงื่อนไขเดิมของคุณริน ยังอยู่ครบ!)
                 if item_no == 8: default_vendor, default_allocated_qty = "TMY", "50"
                 elif item_no == 9: default_vendor, default_allocated_qty = "PLM", "15"
                 elif item_no == 12: default_vendor, default_allocated_qty = "ALPS / YGT", "40"
@@ -171,7 +175,7 @@ def parse_full_invoice(file):
                     
                 items.append({
                     "No": item_no,
-                    "Part No.": part_no,
+                    "Part No.": part_no, # เก็บค่าดั้งเดิมที่มี 0 ไว้โชว์ในตาราง
                     "Description of goods": desc,
                     "P.O No.": po,
                     "Quantity": qty,
@@ -184,9 +188,9 @@ def parse_full_invoice(file):
                 continue
                 
     df_res = pd.DataFrame(items)
-    df_res["Quantity (Allocated)"] = df_res["Quantity (Allocated)"].astype(str)
+    if not df_res.empty:
+        df_res["Quantity (Allocated)"] = df_res["Quantity (Allocated)"].astype(str)
     return df_res, iv_no, iv_date
-
 # 5. Export Exact Formatted CMV Invoice Excel (openpyxl)
 def create_annotated_invoice_excel(df_table, iv_no, iv_date):
     wb = openpyxl.Workbook()

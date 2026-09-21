@@ -105,6 +105,14 @@ def load_backend_master():
             
         return df_items, df_alloc
     return None, None
+    # --- ให้เติมโค้ดชุดนี้ต่อท้ายใต้ฟังก์ชัน load_backend_master() ---
+master_items, master_alloc = load_backend_master()
+VENDOR_MAP = {
+    "PLTHE01": "TMY",
+    "PLPAI02": "PLM",
+    "PLALP01": "ALPS",
+    "PLYAG01": "YGT"
+}
 #4. Parse Full 60 Items from CMV Invoice
 def parse_full_invoice(file):
     xls = pd.ExcelFile(file)

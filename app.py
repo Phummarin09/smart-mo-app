@@ -168,31 +168,37 @@ def parse_full_invoice(file):
                 
                 # ==========================================
                 
-                # ถ้ารายการนี้ผ่านเงื่อนไข ค่อยไปค้นหาชื่อ Supplier ใน Master Data
+                # ค้นหาซัพพลายเออร์ด้วยระบบ "สะพานเชื่อม (Item_Code)"
+                # ==========================================
                 if should_find_supplier and (master_items is not None):
+                    # Step 1: ค้นหาบรรทัดจาก Code_CMA ในใบ Invoice
                     m = master_items[master_items["Code_CMA"] == part_no]
                     
                     if not m.empty:
+                        # ข้ามสะพานไปหา Item_Code หลัก
                         it_code = m.iloc[0]["Item_Code"]
-                        alloc = master_alloc[master_alloc["Item_Code"] == it_code]
-                        v_list = [VENDOR_MAP.get(x, x) for x in alloc["Supplier_Code"].unique()]
                         
-                        # กรองเอาเฉพาะเจัาที่อยู่ใน 4 ซัพพลายเออร์หลัก
-                        valid_vendors = [v for v in v_list if v in allowed_vendors]
+                        # Step 2: เหมาดึงซัพพลายเออร์ทั้งหมดที่มี Item_Code เดียวกัน (รวมงาน FINISH ด้วย)
+                        related_rows = master_items[master_items["Item_Code"] == it_code]
                         
-                        if valid_vendors:
-                            default_vendor = " / ".join(valid_vendors)
-                            default_allocated_qty = str(qty)
-
-                # กรณีพิเศษ: พาร์ท 0615-464-2 บังคับให้เป็น YGT / PLM รอไว้ให้ผู้ใช้กดแบ่งยอด
-                if part_no == "0615-464-2":
-                    default_vendor = "YGT / PLM"
-                    default_allocated_qty = str(qty)
+                        if "Route_Vendor" in related_rows.columns:
+                            raw_vendors = related_rows["Route_Vendor"].dropna().unique()
+                            mapped_vendors = [VENDOR_MAP.get(str(v).strip(), str(v).strip()) for v in raw_vendors]
+                            
+                            # คัดเฉพาะ 4 เจ้าหลัก และลบตัวซ้ำออก
+                            valid_vendors = []
+                            for v in mapped_vendors:
+                                if v in allowed_vendors and v not in valid_vendors:
+                                    valid_vendors.append(v)
+                            
+                            if valid_vendors:
+                                default_vendor = " / ".join(valid_vendors)
+                                default_allocated_qty = str(qty)
 
                 if not default_vendor.strip():
                     default_allocated_qty = ""
                     
-                # *** นำข้อมูล "ทุกบรรทัด" มาต่อท้ายในตารางเสมอ (ไม่ว่าจะเจอ Supplier หรือไม่) ***
+               # *** นำข้อมูล "ทุกบรรทัด" มาต่อท้ายในตาราง ***
                 items.append({
                     "No": item_no,
                     "Part No.": part_no,
@@ -586,9 +592,11 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.markdown("---")
         st.markdown("### 🔀 จัดสรรสัดส่วนซัพพลายเออร์ (Multi-Supplier Split)")
         
-        # --- NEW SPLIT LOGIC ---
+        # --NEW SPLIT LOGIC
+        st.markdown("### 🔀 จัดสรรสัดส่วนซัพพลายเออร์ (Multi-Supplier Split)")
         df_to_split = st.session_state.full_invoice_df.copy()
         mask_split = df_to_split['Supplier'].astype(str).str.contains('/', na=False)
+        
         df_normal = df_to_split[~mask_split].copy()
         df_split = df_to_split[mask_split].copy()
         split_rows = []
@@ -601,52 +609,43 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 except ValueError:
                     total_qty = 0
                     
-                # ดึงตัวแปรก่อนใช้ st.slider เสมอ
                 part_no = row.get('Part No.', 'Unknown Code')
                 part_desc = row.get('Description of goods', 'Unknown Part')
                 
-                if len(suppliers) == 2 and total_qty > 0:
-                    sup1, sup2 = suppliers[0], suppliers[1]
+                # เช็กว่ามี 2 เจ้าขึ้นไป
+                if len(suppliers) >= 2 and total_qty > 0:
+                    st.markdown(f"**📦 [{part_no}] {part_desc} (ทั้งหมด {int(total_qty)} ชิ้น)**")
                     
-                    col1, col2 = st.columns([2, 1])
-                    with col1:
-                        # ใส่ตัวแปร [part_no] เข้าไปในข้อความ
-                        qty_sup1 = st.slider(
-                            f"📦 [{part_no}] {part_desc} (ทั้งหมด {int(total_qty)} ชิ้น) | ระบุจำนวนส่งให้ {sup1}", 
-                            min_value=0, 
-                            max_value=int(total_qty), 
-                            value=int(total_qty // 2), 
-                            step=1,
-                            key=f"split_slider_row_{i}"
-                        )
+                    # แบ่งหน้าจอเป็นคอลัมน์ตามจำนวนซัพพลายเออร์ (3 เจ้า ก็จะได้ 3 ช่องอัตโนมัติ)
+                    cols = st.columns(len(suppliers))
                     
-                    qty_sup2 = int(total_qty) - qty_sup1
+                    allocated_qtys = []
+                    for j, sup in enumerate(suppliers):
+                        with cols[j]:
+                            # ให้กล่องแรกรับค่ายอดเต็มไปก่อน กล่องอื่นเป็น 0
+                            default_val = int(total_qty) if j == 0 else 0
+                            q = st.number_input(f"ส่งให้ {sup} (pcs)", min_value=0, max_value=int(total_qty), value=default_val, step=1, key=f"split_{i}_{j}")
+                            allocated_qtys.append((sup, q))
                     
-                    with col2:
-                        st.info(f"🔹 **{sup1}**: {qty_sup1} pcs\n\n🔸 **{sup2}**: {qty_sup2} pcs")
-                    
-                    if qty_sup1 > 0:
-                        row1 = row.copy()
-                        row1['Supplier'] = sup1
-                        row1['Quantity (Allocated)'] = str(qty_sup1)
-                        try:
-                            row1['Amount (JPY)'] = float(row1['Unit Price']) * qty_sup1
-                        except:
-                            pass
-                        split_rows.append(row1)
-                        
-                    if qty_sup2 > 0:
-                        row2 = row.copy()
-                        row2['Supplier'] = sup2
-                        row2['Quantity (Allocated)'] = str(qty_sup2)
-                        try:
-                            row2['Amount (JPY)'] = float(row2['Unit Price']) * qty_sup2
-                        except:
-                            pass
-                        split_rows.append(row2)
+                    # ตรวจสอบยอดรวม
+                    current_sum = sum(q for _, q in allocated_qtys)
+                    if current_sum != int(total_qty):
+                        st.error(f"⚠️ ยอดรวมที่จัดสรร ({current_sum}) ยังไม่เท่ากับยอดเต็ม ({int(total_qty)}) กรุณาปรับตัวเลข")
+                    else:
+                        for sup, q in allocated_qtys:
+                            if q > 0:
+                                row_new = row.copy()
+                                row_new['Supplier'] = sup
+                                row_new['Quantity (Allocated)'] = str(q)
+                                try:
+                                    row_new['Amount (JPY)'] = float(row_new['Unit Price']) * q
+                                except:
+                                    pass
+                                split_rows.append(row_new)
+                    st.markdown("---")
                 else:
                     split_rows.append(row)
-        
+                    
         if split_rows:
             df_split_processed = pd.DataFrame(split_rows)
             df_final = pd.concat([df_normal, df_split_processed], ignore_index=True)

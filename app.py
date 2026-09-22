@@ -146,29 +146,30 @@ def parse_full_invoice(file):
                 unit_price = row[7] if pd.notna(row[7]) else ""
                 amt = row[8] if pd.notna(row[8]) else ""
                 
-                # ==========================================
-                # กฎการคัดกรองข้อมูล (Filter Logic)
-                # ==========================================
-                
-                # 1. ต้องขึ้นต้นด้วยเลข 0 เท่านั้น
-                if not part_no.startswith('0'):
-                    continue
-                    
-                # 2. ต้องไม่ลงท้ายด้วย R หรือ F
-                if part_no.upper().endswith(('R', 'F')):
-                    continue
-                    
-                # 3. ต้องไม่ใช่ชิ้นงาน BED
-                if "BED" in desc.upper():
-                    continue
-                
-                # ==========================================
-                
                 default_vendor = ""
                 default_allocated_qty = ""
                 
-                if master_items is not None:
-                    # ค้นหาใน Master Data ด้วย Code_CMA
+                # ==========================================
+                # ตัวแปรเช็กเงื่อนไข (ถ้าเป็น False คือไม่หาซัพพลายเออร์ แต่ยังโชว์ข้อมูล)
+                # ==========================================
+                should_find_supplier = True
+                
+                # 1. ต้องขึ้นต้นด้วยเลข 0 เท่านั้น
+                if not part_no.startswith('0'):
+                    should_find_supplier = False
+                    
+                # 2. ต้องไม่ลงท้ายด้วย R หรือ F
+                if part_no.upper().endswith(('R', 'F')):
+                    should_find_supplier = False
+                    
+                # 3. ต้องไม่ใช่ชิ้นงาน BED
+                if "BED" in desc.upper():
+                    should_find_supplier = False
+                
+                # ==========================================
+                
+                # ถ้ารายการนี้ผ่านเงื่อนไข ค่อยไปค้นหาชื่อ Supplier ใน Master Data
+                if should_find_supplier and (master_items is not None):
                     m = master_items[master_items["Code_CMA"] == part_no]
                     
                     if not m.empty:
@@ -182,9 +183,6 @@ def parse_full_invoice(file):
                         if valid_vendors:
                             default_vendor = " / ".join(valid_vendors)
                             default_allocated_qty = str(qty)
-                        else:
-                            # ถ้าเป็นเจ้าอื่น (เช่น CMV) ให้ข้ามบรรทัดนี้ไปเลย ไม่เอามาโชว์
-                            continue
 
                 # กรณีพิเศษ: พาร์ท 0615-464-2 บังคับให้เป็น YGT / PLM รอไว้ให้ผู้ใช้กดแบ่งยอด
                 if part_no == "0615-464-2":
@@ -194,6 +192,7 @@ def parse_full_invoice(file):
                 if not default_vendor.strip():
                     default_allocated_qty = ""
                     
+                # *** นำข้อมูล "ทุกบรรทัด" มาต่อท้ายในตารางเสมอ (ไม่ว่าจะเจอ Supplier หรือไม่) ***
                 items.append({
                     "No": item_no,
                     "Part No.": part_no,

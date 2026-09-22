@@ -656,17 +656,25 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 # บรรทัดปกติที่ไม่มีการแบ่งยอด ก็ต่อท้ายตามลำดับเดิม
                 final_rows.append(row)
                 
+        # สร้างตารางและรีเซ็ตดัชนีให้ถูกต้อง
         df_final = pd.DataFrame(final_rows)
+        df_final.reset_index(drop=True, inplace=True) # <-- บรรทัดนี้สำคัญมาก! ป้องกัน KeyError
+        
+        # จัดการค่าว่างให้สวยงาม
+        df_final = df_final.fillna("")
+        
         st.session_state.final_split_df = df_final
 
         st.markdown("### 📋 ตารางสรุปข้อมูลหลังแบ่งจำนวน (ข้อมูลที่แท้จริงที่จะนำไปออกเอกสาร)")
         
-        # ปรับฟังก์ชันไฮไลต์สีฟ้าให้ระบายสีรายการที่โดนแบ่งยอด
-        def highlight_split(s):
-            if s['Part No.'] in split_parts_for_highlight:
-                return ['background-color: #e0f2fe'] * len(s)
-            return [''] * len(s)
+        # ปรับฟังก์ชันไฮไลต์ให้ปลอดภัยขึ้น
+        def highlight_split(row):
+            part = row.get('Part No.', '')
+            if part in split_parts_for_highlight:
+                return ['background-color: #e0f2fe'] * len(row)
+            return [''] * len(row)
 
+        # ใช้ dataframe ธรรมดาก่อน ถ้าแบบมีสีพัง ให้ลบ .style... ออกเหลือแค่ df_final
         st.dataframe(df_final.style.apply(highlight_split, axis=1), use_container_width=True, hide_index=True)
         
         st.success(f"📌 ข้อมูลพร้อมสำหรับการพิมพ์แล้ว (รวม {len(df_final)} รายการ)")

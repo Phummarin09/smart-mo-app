@@ -99,13 +99,13 @@ def load_backend_master():
         df_items = pd.read_excel(xls, "Item_Master")
         df_alloc = pd.read_excel(xls, "Supplier_Allocation")
         
-        # --- [เพิ่มใหม่] ล้างข้อมูล Code_CMA ให้สะอาดก่อนใช้งาน ---
+        # แปลงเป็นตัวอักษรและตัดช่องว่างเฉยๆ (ไม่ลบ 0 แล้ว)
         if 'Code_CMA' in df_items.columns:
-            df_items['Code_CMA'] = df_items['Code_CMA'].astype(str).str.strip().str.lstrip('0')
+            df_items['Code_CMA'] = df_items['Code_CMA'].astype(str).str.strip()
             
         return df_items, df_alloc
     return None, None
-    # --- ให้เติมโค้ดชุดนี้ต่อท้ายใต้ฟังก์ชัน load_backend_master() ---
+
 master_items, master_alloc = load_backend_master()
 VENDOR_MAP = {
     "PLTHE01": "TMY",
@@ -113,7 +113,7 @@ VENDOR_MAP = {
     "PLALP01": "ALPS",
     "PLYAG01": "YGT"
 }
-#4. Parse Full 60 Items from CMV Invoice
+#4. Parse Full Items from CMV Invoice
 def parse_full_invoice(file):
     xls = pd.ExcelFile(file)
     target_sheet = "IV" if "IV" in xls.sheet_names else xls.sheet_names[0]
@@ -131,6 +131,8 @@ def parse_full_invoice(file):
                 iv_date = str(row_vals[idx + 1])[:10]
                 
     items = []
+    allowed_vendors = ["TMY", "PLM", "ALPS", "YGT"] # 4 ซัพพลายเออร์หลัก
+    
     for r in range(20, len(df_raw)):
         row = df_raw.iloc[r]
         val_0 = row[0]
@@ -138,52 +140,63 @@ def parse_full_invoice(file):
             try:
                 item_no = int(val_0)
                 part_no = str(row[1]).strip() if pd.notna(row[1]) else ""
-                
-                # --- [เพิ่มใหม่] ล้างเลข 0 ด้านหน้าและช่องว่าง เพื่อเอาไปเทียบ ---
-                clean_part_no = part_no.lstrip('0').strip()
-                
                 desc = str(row[2]).strip() if pd.notna(row[2]) else ""
                 po = str(row[4]).strip() if pd.notna(row[4]) else ""
                 qty = int(row[5]) if pd.notna(row[5]) else 0
                 unit_price = row[7] if pd.notna(row[7]) else ""
                 amt = row[8] if pd.notna(row[8]) else ""
                 
+                # ==========================================
+                # กฎการคัดกรองข้อมูล (Filter Logic)
+                # ==========================================
+                
+                # 1. ต้องขึ้นต้นด้วยเลข 0 เท่านั้น
+                if not part_no.startswith('0'):
+                    continue
+                    
+                # 2. ต้องไม่ลงท้ายด้วย R หรือ F
+                if part_no.upper().endswith(('R', 'F')):
+                    continue
+                    
+                # 3. ต้องไม่ใช่ชิ้นงาน BED
+                if "BED" in desc.upper():
+                    continue
+                
+                # ==========================================
+                
                 default_vendor = ""
                 default_allocated_qty = ""
                 
                 if master_items is not None:
-                    # --- [แก้จุดเชื่อม] เอา clean_part_no ไปเทียบกับ Code_CMA และ Item_Code ---
-                    m = master_items[(master_items["Code_CMA"] == clean_part_no) | 
-                                     (master_items["Item_Code"] == clean_part_no)]
+                    # ค้นหาใน Master Data ด้วย Code_CMA
+                    m = master_items[master_items["Code_CMA"] == part_no]
                     
                     if not m.empty:
                         it_code = m.iloc[0]["Item_Code"]
                         alloc = master_alloc[master_alloc["Item_Code"] == it_code]
                         v_list = [VENDOR_MAP.get(x, x) for x in alloc["Supplier_Code"].unique()]
-                        default_vendor = "/".join(v_list)
-                        default_allocated_qty = str(qty)
+                        
+                        # กรองเอาเฉพาะเจัาที่อยู่ใน 4 ซัพพลายเออร์หลัก
+                        valid_vendors = [v for v in v_list if v in allowed_vendors]
+                        
+                        if valid_vendors:
+                            default_vendor = " / ".join(valid_vendors)
+                            default_allocated_qty = str(qty)
+                        else:
+                            # ถ้าเป็นเจ้าอื่น (เช่น CMV) ให้ข้ามบรรทัดนี้ไปเลย ไม่เอามาโชว์
+                            continue
 
-                # Preset handwritten allocation values (เงื่อนไขเดิมของคุณริน ยังอยู่ครบ!)
-                if item_no == 8: default_vendor, default_allocated_qty = "TMY", "50"
-                elif item_no == 9: default_vendor, default_allocated_qty = "PLM", "15"
-                elif item_no == 12: default_vendor, default_allocated_qty = "ALPS / YGT", "40"
-                elif item_no == 14: default_vendor, default_allocated_qty = "PLM Sample", "2"
-                elif item_no == 16: default_vendor, default_allocated_qty = "TMY", "10"
-                elif item_no == 22: default_vendor, default_allocated_qty = "TMY / YGT", "32"
-                elif item_no == 23: default_vendor, default_allocated_qty = "PLM", "30"
-                elif item_no == 24: default_vendor, default_allocated_qty = "TMY", "30"
-                elif item_no == 26: default_vendor, default_allocated_qty = "PLM", "15"
-                elif item_no == 27: default_vendor, default_allocated_qty = "TMY", "3"
-                elif item_no == 31: default_vendor, default_allocated_qty = "TMY", "14"
-                elif item_no == 33: default_vendor, default_allocated_qty = "PLM", "10"
-                elif item_no in [43, 44, 45]: default_vendor, default_allocated_qty = "PLM", "15"
-                
+                # กรณีพิเศษ: พาร์ท 0615-464-2 บังคับให้เป็น YGT / PLM รอไว้ให้ผู้ใช้กดแบ่งยอด
+                if part_no == "0615-464-2":
+                    default_vendor = "YGT / PLM"
+                    default_allocated_qty = str(qty)
+
                 if not default_vendor.strip():
                     default_allocated_qty = ""
                     
                 items.append({
                     "No": item_no,
-                    "Part No.": part_no, # เก็บค่าดั้งเดิมที่มี 0 ไว้โชว์ในตาราง
+                    "Part No.": part_no,
                     "Description of goods": desc,
                     "P.O No.": po,
                     "Quantity": qty,

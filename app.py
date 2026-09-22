@@ -592,18 +592,20 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.markdown("---")
         st.markdown("### 🔀 จัดสรรสัดส่วนซัพพลายเออร์ (Multi-Supplier Split)")
         
-        # --NEW SPLIT LOGIC
+       # --NEW SPLIT LOGIC
         st.markdown("### 🔀 จัดสรรสัดส่วนซัพพลายเออร์ (Multi-Supplier Split)")
         df_to_split = st.session_state.full_invoice_df.copy()
-        mask_split = df_to_split['Supplier'].astype(str).str.contains('/', na=False)
         
-        df_normal = df_to_split[~mask_split].copy()
-        df_split = df_to_split[mask_split].copy()
-        split_rows = []
+        final_rows = []
+        split_parts_for_highlight = [] # เก็บชื่อพาร์ทที่โดนแบ่งยอดไว้ทำไฮไลต์สีฟ้า
         
-        if not df_split.empty:
-            for i, (idx, row) in enumerate(df_split.iterrows()):
-                suppliers = [s.strip() for s in str(row['Supplier']).split('/')]
+        # วนลูปอ่านข้อมูลทีละบรรทัดจากบนลงล่าง เพื่อรักษาลำดับเดิมเป๊ะๆ
+        for i, (idx, row) in enumerate(df_to_split.iterrows()):
+            suppliers_str = str(row['Supplier'])
+            
+            # เช็กว่าบรรทัดนี้ต้องแบ่งยอดหรือไม่ (มีเครื่องหมาย /)
+            if '/' in suppliers_str:
+                suppliers = [s.strip() for s in suppliers_str.split('/')]
                 try:
                     total_qty = float(row['Quantity (Allocated)'])
                 except ValueError:
@@ -612,54 +614,59 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 part_no = row.get('Part No.', 'Unknown Code')
                 part_desc = row.get('Description of goods', 'Unknown Part')
                 
-                # เช็กว่ามี 2 เจ้าขึ้นไป
                 if len(suppliers) >= 2 and total_qty > 0:
+                    split_parts_for_highlight.append(part_no)
                     st.markdown(f"**📦 [{part_no}] {part_desc} (ทั้งหมด {int(total_qty)} ชิ้น)**")
                     
-                    # แบ่งหน้าจอเป็นคอลัมน์ตามจำนวนซัพพลายเออร์ (3 เจ้า ก็จะได้ 3 ช่องอัตโนมัติ)
                     cols = st.columns(len(suppliers))
-                    
                     allocated_qtys = []
+                    
                     for j, sup in enumerate(suppliers):
                         with cols[j]:
-                            # ให้กล่องแรกรับค่ายอดเต็มไปก่อน กล่องอื่นเป็น 0
                             default_val = int(total_qty) if j == 0 else 0
                             q = st.number_input(f"ส่งให้ {sup} (pcs)", min_value=0, max_value=int(total_qty), value=default_val, step=1, key=f"split_{i}_{j}")
                             allocated_qtys.append((sup, q))
                     
-                    # ตรวจสอบยอดรวม
                     current_sum = sum(q for _, q in allocated_qtys)
                     if current_sum != int(total_qty):
                         st.error(f"⚠️ ยอดรวมที่จัดสรร ({current_sum}) ยังไม่เท่ากับยอดเต็ม ({int(total_qty)}) กรุณาปรับตัวเลข")
                     else:
+                        is_first_row = True
                         for sup, q in allocated_qtys:
                             if q > 0:
                                 row_new = row.copy()
                                 row_new['Supplier'] = sup
                                 row_new['Quantity (Allocated)'] = str(q)
+                                
+                                # ถ้าไม่ใช่บรรทัดแรกที่ถูกแบ่ง ให้ซ่อนตัวเลขช่อง No.
+                                if not is_first_row:
+                                    row_new['No'] = ""
+                                
                                 try:
                                     row_new['Amount (JPY)'] = float(row_new['Unit Price']) * q
                                 except:
                                     pass
-                                split_rows.append(row_new)
+                                    
+                                final_rows.append(row_new)
+                                is_first_row = False # เปลี่ยนสถานะว่าผ่านบรรทัดแรกไปแล้ว
                     st.markdown("---")
                 else:
-                    split_rows.append(row)
-                    
-        if split_rows:
-            df_split_processed = pd.DataFrame(split_rows)
-            df_final = pd.concat([df_normal, df_split_processed], ignore_index=True)
-        else:
-            df_final = df_normal.copy()
-            
+                    final_rows.append(row)
+            else:
+                # บรรทัดปกติที่ไม่มีการแบ่งยอด ก็ต่อท้ายตามลำดับเดิม
+                final_rows.append(row)
+                
+        df_final = pd.DataFrame(final_rows)
         st.session_state.final_split_df = df_final
-        
+
         st.markdown("### 📋 ตารางสรุปข้อมูลหลังแบ่งจำนวน (ข้อมูลที่แท้จริงที่จะนำไปออกเอกสาร)")
+        
+        # ปรับฟังก์ชันไฮไลต์สีฟ้าให้ระบายสีรายการที่โดนแบ่งยอด
         def highlight_split(s):
-            if s['Supplier'] in [sup.strip() for idx, r in df_split.iterrows() for sup in str(r['Supplier']).split('/')]:
+            if s['Part No.'] in split_parts_for_highlight:
                 return ['background-color: #e0f2fe'] * len(s)
             return [''] * len(s)
-            
+
         st.dataframe(df_final.style.apply(highlight_split, axis=1), use_container_width=True, hide_index=True)
         
         st.success(f"📌 ข้อมูลพร้อมสำหรับการพิมพ์แล้ว (รวม {len(df_final)} รายการ)")

@@ -762,18 +762,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                         "Remark": remark_text
                     })
                                 
-                alloc_qty = r["Quantity (Allocated)"]
-                gatepass_items.append({
-                    "Part No.": part,
-                    "Casting_Code": c_code,
-                    "Description of goods": r["Description of goods"],
-                    "PO_No": "",
-                    "Assigned_Qty": alloc_qty,
-                    "Invoice_No": st.session_state.iv_number,
-                    "Note": ""
-                })
                 
-        df_gp = pd.DataFrame(gatepass_items)
         
         with st.container(border=True):
             st.markdown(f"### **CITIZEN MACHINERY ASIA CO., LTD.**")

@@ -337,107 +337,110 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
 
 # 6. Export Outward Delivery Note / Gate Pass Excel
 def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "OUTWARD DELIVERY NOTE"
     
-    ws.views.sheetView[0].showGridLines = True
+    ws.views.sheetView[0].showGridLines = False
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
     
+    # --- Styles ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
-    border_bottom_double = Border(bottom=Side(style='double', color='000000'), top=thin, left=thin, right=thin)
+    font_bold_lg = Font(name='Calibri', size=14, bold=True)
+    font_bold_md = Font(name='Calibri', size=12, bold=True)
+    font_normal = Font(name='Calibri', size=10)
+    font_red = Font(name='Calibri', size=11, color='FF0000', bold=True)
     
-    font_company = Font(name='Calibri', size=14, bold=True)
-    font_addr = Font(name='Calibri', size=9, color='333333')
-    font_doc_th = Font(name='Calibri', size=13, bold=True)
-    font_doc_en = Font(name='Calibri', size=10, bold=True)
-    font_hdr = Font(name='Calibri', size=9, bold=True)
-    font_cell = Font(name='Calibri', size=9)
-    font_bold = Font(name='Calibri', size=9, bold=True)
+    # --- Header (Company Info) ---
+    ws['A1'] = "CITIZEN"
+    ws['A1'].font = Font(name='Calibri', size=18, bold=True)
+    ws['C1'] = "CITIZEN MACHINERY ASIA CO., LTD."
+    ws['C1'].font = font_bold_md
+    ws['E1'] = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
+    ws['E1'].font = Font(name='Calibri', size=8)
+    ws['E1'].alignment = Alignment(wrap_text=True, vertical='top')
+    ws.merge_cells('E1:G4')
     
-    fill_hdr = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
-    fill_confirm = PatternFill(start_color='E8EEF5', end_color='E8EEF5', fill_type='solid')
+    # --- Document Title ---
+    ws.merge_cells('C5:E5')
+    ws['C5'] = "ใบนำของออกนอกโรงงาน"
+    ws['C5'].font = font_bold_lg
+    ws['C5'].alignment = Alignment(horizontal='center', vertical='center')
     
-    ws['A1'] = "CITIZEN MACHINERY ASIA CO., LTD."
-    ws['A1'].font = font_company
-    ws['A2'] = "199, Mu 1 Phahon Yothin Road, Sanap Tuep Sub-district,"
-    ws['A2'].font = font_addr
-    ws['A3'] = "Wang Noi District, Phra Nakhon Si Ayutthaya Province 13170, Thailand"
-    ws['A3'].font = font_addr
-    ws['A4'] = "Tel: 66 (0)35 902-640-1 #807; Fax: 66 (0)35 902-644"
-    ws['A4'].font = font_addr
+    # --- Info fields (No Book No.) ---
+    ws['A6'] = "Date (วันที่)"
+    ws['B6'] = str(doc_date)
+    ws['A6'].font = font_normal; ws['B6'].font = font_normal
+    ws['B6'].alignment = Alignment(horizontal='left')
     
-    ws.merge_cells('A6:G6')
-    ws['A6'] = "ใบส่งของออก / OUTWARD DELIVERY NOTE"
-    ws['A6'].font = font_doc_th
-    ws['A6'].alignment = Alignment(horizontal='center', vertical='center')
+    ws['F6'] = "No."
+    ws['G6'] = gp_no
+    ws['F6'].font = font_bold_md; ws['F6'].alignment = Alignment(horizontal='right')
+    ws['G6'].font = font_red; ws['G6'].alignment = Alignment(horizontal='left')
     
-    ws.merge_cells('A7:G7')
-    ws['A7'] = "งานจ้างกัด / CUTTING SERVICE"
-    ws['A7'].font = font_doc_en
-    ws['A7'].alignment = Alignment(horizontal='center', vertical='center')
+    ws['A7'] = "Send to(ส่ง)"
+    ws['B7'] = f"{vendor_name}"
+    ws['A7'].font = font_normal; ws['B7'].font = font_bold_md
     
-    ws['A9'] = f"To Supplier   {vendor_name}"
-    ws['A9'].font = font_bold
+    ws['A8'] = "The purpose (วัตถุประสงค์)"
+    ws['A8'].font = font_normal
     
-    ws['F9'] = "No. / เลขที่"
-    ws['F9'].font = font_bold
-    ws['G9'] = gp_no
-    ws['G9'].font = font_bold
-    ws['G9'].alignment = Alignment(horizontal='left')
+    ws.merge_cells('A9:G9')
+    ws['A9'] = "     O ส่งซ่อม (Send to repair)          O จ้างกัด Casting          O อื่น ๆ (Other)________________________"
+    ws['A9'].font = font_normal
+    ws['A9'].alignment = Alignment(vertical='center')
     
-    ws['F10'] = "Date / วันที่"
-    ws['F10'].font = font_bold
-    ws['G10'] = str(doc_date)
-    ws['G10'].font = font_bold
-    ws['G10'].alignment = Alignment(horizontal='left')
-    
+    # --- Table Header ---
     headers = [
-        ("A", "Item No.\nลำดับ"),
-        ("B", "Description\nรายละเอียด"),
+        ("A", "Item\nลำดับ"),
+        ("B", "Description\nรายการ"),
         ("C", "Q'ty\nจำนวน"),
-        ("D", "วันที่ส่งมอบ\nDelivery Date"),
-        ("E", "เลขที่ PO\nPO No."),
-        ("F", "เลขที่ IV\nIV No."),
-        ("G", "หมายเหตุ\nRemark")
+        ("D", "Delivery Date\nวันส่งมอบ"),
+        ("E", "PO.No.\nเลขที่ใบสั่งซื้อ"),
+        ("F", "Invoice No."),
+        ("G", "Remark\nคำอธิบาย")
     ]
-    
-    for col_let, text in headers:
-        c = ws[f'{col_let}11']
+    for col, text in headers:
+        c = ws[f'{col}11']
         c.value = text
-        c.font = font_hdr
+        c.font = font_bold_md
         c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        c.fill = fill_hdr
         c.border = border_box
-        ws.row_dimensions[11].height = 28
+        ws.row_dimensions[11].height = 35
         
+    # --- Table Data (15 Rows) ---
     current_r = 12
-    tot_qty = 0
     records_count = len(df_records)
-    
     for slot in range(15):
         row_num = current_r + slot
-        ws.row_dimensions[row_num].height = 20
+        ws.row_dimensions[row_num].height = 22
         
         if slot < records_count:
             r = df_records.iloc[slot]
-            qty_val = int(float(r['Assigned_Qty'])) if str(r['Assigned_Qty']).replace('.0', '').isdigit() else 0
-            tot_qty += qty_val
+            qty_val = r.get('Assigned_Qty', 0)
             
             ws[f'A{row_num}'] = slot + 1
-            ws[f'B{row_num}'] = r.get('Part No.', '')     # เปลี่ยนมาดึง Part No. แทนชื่ออะไหล่
+            ws[f'B{row_num}'] = r.get('Part No.', '')
             ws[f'C{row_num}'] = qty_val
-            ws[f'D{row_num}'] = ""                        # เว้นว่าง Delivery Date
-            ws[f'E{row_num}'] = ""                        # เว้นว่าง PO No.
-            ws[f'F{row_num}'] = r.get('Invoice No.', '')  # ดึงเลข Invoice
-            ws[f'G{row_num}'] = r.get('Remark', '')       # ดึงค่า Remark
+            ws[f'D{row_num}'] = ""
+            ws[f'E{row_num}'] = ""
+            ws[f'F{row_num}'] = r.get('Invoice No.', '')
+            ws[f'G{row_num}'] = r.get('Remark', '')
         else:
-            ws[f'A{row_num}'] = slot + 1
-            for col in ["B", "C", "D", "E", "F", "G"]:
-                ws[f'{col}{row_num}'] = ""
-                
+            ws[f'A{row_num}'] = ""
+            ws[f'B{row_num}'] = ""
+            ws[f'C{row_num}'] = ""
+            ws[f'D{row_num}'] = ""
+            ws[f'E{row_num}'] = ""
+            ws[f'F{row_num}'] = ""
+            ws[f'G{row_num}'] = ""
+            
         ws[f'A{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
         ws[f'B{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
         ws[f'C{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
@@ -448,66 +451,37 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         
         for col_l in ["A", "B", "C", "D", "E", "F", "G"]:
             ws[f'{col_l}{row_num}'].border = border_box
-            ws[f'{col_l}{row_num}'].font = font_cell
-            
-    tot_row = 27
-    ws.merge_cells(f'A{tot_row}:B{tot_row}')
-    ws[f'A{tot_row}'] = "Total Q'ty / รวมจำนวน"
-    ws[f'A{tot_row}'].font = font_bold
-    ws[f'A{tot_row}'].alignment = Alignment(horizontal='center', vertical='center')
+            ws[f'{col_l}{row_num}'].font = font_normal
+
+    # --- Footer ---
+    footer_start = 28
+    ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
+    ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
+    ws[f'A{footer_start+1}'] = "Date (วันที่)          ........................................................"
+    ws[f'E{footer_start+1}'] = "Date (วันที่)          ........................................................"
     
-    ws[f'C{tot_row}'] = tot_qty
-    ws[f'C{tot_row}'].font = font_bold
-    ws[f'C{tot_row}'].alignment = Alignment(horizontal='center', vertical='center')
+    # Expect return date box
+    ws.merge_cells(f'A{footer_start+3}:C{footer_start+3}')
+    ws[f'A{footer_start+3}'] = "Expect return date"
+    ws[f'A{footer_start+3}'].border = Border(left=thin, top=thin, right=thin)
     
-    for c_let in ["A", "B", "C", "D", "E", "F", "G"]:
-        ws[f'{c_let}{tot_row}'].border = border_bottom_double
-        ws[f'{c_let}{tot_row}'].fill = fill_hdr
-        
-    ws.merge_cells('A29:G29')
-    ws['A29'] = "การรับ–ส่งสินค้า / DELIVERY & RECEIVING CONFIRMATION"
-    ws['A29'].font = font_bold
-    ws['A29'].alignment = Alignment(horizontal='center', vertical='center')
-    ws['A29'].fill = fill_confirm
-    for c_let in ["A","B","C","D","E","F","G"]:
-        ws[f'{c_let}29'].border = border_box
-        
-    ws.merge_cells('A30:C30')
-    ws['A30'] = "ผู้ส่งออก / Issued & Delivered by"
-    ws['A30'].font = font_bold
-    ws['A30'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.merge_cells(f'A{footer_start+4}:C{footer_start+4}')
+    ws[f'A{footer_start+4}'] = "(วันส่งคืน)"
+    ws[f'A{footer_start+4}'].border = Border(left=thin, bottom=thin, right=thin)
     
-    ws.merge_cells('D30:G30')
-    ws['D30'] = "ผู้รับ / Received by"
-    ws['D30'].font = font_bold
-    ws['D30'].alignment = Alignment(horizontal='center', vertical='center')
-    
-    for r_i in range(30, 34):
-        for c_let in ["A","B","C","D","E","F","G"]:
-            ws[f'{c_let}{r_i}'].border = border_box
-            
-    ws['A31'] = "ชื่อ / Name: __________________________"
-    ws['A31'].font = font_cell
-    ws['A32'] = "วันที่ / Date: __________________________"
-    ws['A32'].font = font_cell
-    ws['D31'] = "ชื่อ / Name: __________________________"
-    ws['D31'].font = font_cell
-    ws['D32'] = "วันที่ / Date: __________________________"
-    ws['D32'].font = font_cell
-    
-    ws['A34'] = "หมายเหตุ / Remark: เอกสารฉบับนี้ใช้สำหรับบันทึกการนำชิ้นงานออกไปดำเนินการจ้างกัด (Cutting)"
-    ws['A34'].font = Font(name='Calibri', size=8, italic=True)
-    ws['A35'] = "This document is used to record parts sent out for external cutting service and serves as evidence of delivery and receipt."
-    ws['A35'].font = Font(name='Calibri', size=8, italic=True)
-    
+    # Document Code
+    ws[f'A{footer_start+5}'] = "CMA-FR-STS-01-02 (01/09/25)"
+    ws[f'A{footer_start+5}'].font = Font(name='Calibri', size=9)
+
+    # --- Set Column Widths ---
     ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 18
+    ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 14
-    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 18
     ws.column_dimensions['F'].width = 20
-    ws.column_dimensions['G'].width = 16
-    
+    ws.column_dimensions['G'].width = 22
+
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()

@@ -427,12 +427,12 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             tot_qty += qty_val
             
             ws[f'A{row_num}'] = slot + 1
-            ws[f'B{row_num}'] = r['Casting_Code']
+            ws[f'B{row_num}'] = r.get('Part No.', '')     # เปลี่ยนมาดึง Part No. แทนชื่ออะไหล่
             ws[f'C{row_num}'] = qty_val
-            ws[f'D{row_num}'] = ""
-            ws[f'E{row_num}'] = ""
-            ws[f'F{row_num}'] = r.get('Invoice_No', '')
-            ws[f'G{row_num}'] = r.get('Note', '')
+            ws[f'D{row_num}'] = ""                        # เว้นว่าง Delivery Date
+            ws[f'E{row_num}'] = ""                        # เว้นว่าง PO No.
+            ws[f'F{row_num}'] = r.get('Invoice No.', '')  # ดึงเลข Invoice
+            ws[f'G{row_num}'] = r.get('Remark', '')       # ดึงค่า Remark
         else:
             ws[f'A{row_num}'] = slot + 1
             for col in ["B", "C", "D", "E", "F", "G"]:
@@ -709,21 +709,58 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             delivery_date = st.date_input("วันที่ส่งของ", value=datetime.date(2026, 9, 2))
             
         gatepass_items = []
-        # ใช้ final_split_df แทนของเก่า
-        for _, r in st.session_state.final_split_df.iterrows():
-            supp_str = str(r["Supplier"])
-            if target_vendor in supp_str and str(r["Quantity (Allocated)"]).strip():
-                part = r["Part No."]
-                c_code = part
-                if master_items is not None:
-                    m = master_items[(master_items["Code_CMA"] == part) | (master_items["Item_Code"] == part)]
-                    if not m.empty:
-                        it_code = m.iloc[0]["Item_Code"]
-                        alloc = master_alloc[(master_alloc["Item_Code"] == it_code)]
-                        for _, a in alloc.iterrows():
-                            if VENDOR_MAP.get(a["Supplier_Code"]) == target_vendor:
-                                c_code = a["Casting_Code"]
-                                break
+            # ใช้ final_split_df เพื่อสร้างรายการใบนำของออก
+        for i, r in st.session_state.final_split_df.iterrows():
+                supp_str = str(r.get("Supplier", ""))
+                try:
+                    qty_val = float(str(r.get("Quantity (Allocated)", 0)).strip())
+                except:
+                    qty_val = 0
+
+                # กรองเอาเฉพาะรายการของซัพพลายเออร์ที่เลือก และมียอดส่งจริง
+                if target_vendor in supp_str and qty_val > 0:
+                    part = str(r.get("Part No.", ""))
+                    c_code = part
+                    
+                    # 1. ค้นหา Casting_Code จาก Master Data
+                    if master_items is not None:
+                        # หา Item_Code ก่อน (ใช้ str.lstrip('0') เพื่อเทียบแบบปอก 0)
+                        m = master_items[(master_items["Code_CMA"] == part) | (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
+                        if not m.empty:
+                            it_code = m.iloc[0]["Item_Code"]
+                            alloc = master_alloc[master_alloc["Item_Code"] == it_code]
+                            for _, a in alloc.iterrows():
+                                if VENDOR_MAP.get(a["Supplier_Code"]) == target_vendor:
+                                    c_code = str(a["Casting_Code"])
+                                    break
+                    
+                    # 2. 🔥 ดักเคสพิเศษ TMY (615-1034) ให้เด้งหน้าเว็บ
+                    part_stripped = part.lstrip('0')
+                    if target_vendor == "TMY" and part_stripped == "615-1034":
+                        st.markdown(f"**⚠️ พบรายการพิเศษ {part} (TMY)**")
+                        # (คุณรินสามารถแก้ "รหัสA" และ "รหัสB" เป็นโค้ดของจริงที่ใช้ได้เลยนะครับ)
+                        c_code = st.radio(
+                            f"กรุณาเลือกรหัส Casting Group สำหรับ {part}:",
+                            options=["615-1034-1F", "615-1034-2F"], # <-- แก้ตรงนี้ได้ครับ
+                            key=f"tmy_choice_{i}",
+                            horizontal=True
+                        )
+
+                    # 3. 🧠 กฎปอกเลขศูนย์เทียบกัน เพื่อโชว์/ซ่อน Remark
+                    c_code_stripped = str(c_code).lstrip('0')
+                    remark_text = ""
+                    
+                    # ถ้าปอก 0 แล้วไม่เหมือนกัน ถึงจะเอา c_code มาโชว์ใน Remark
+                    if part_stripped != c_code_stripped:
+                        remark_text = c_code
+
+                    # 4. เก็บข้อมูลเตรียมส่งไปวาดตาราง Excel
+                    gatepass_items.append({
+                        "Part No.": part,
+                        "Assigned_Qty": str(int(qty_val)),
+                        "Invoice No.": st.session_state.iv_number, # ดึงเลข IV
+                        "Remark": remark_text
+                    })
                                 
                 alloc_qty = r["Quantity (Allocated)"]
                 gatepass_items.append({

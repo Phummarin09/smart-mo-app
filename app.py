@@ -360,7 +360,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_address = Font(name='Calibri', size=8)
     font_red = Font(name='Calibri', size=12, color='FF0000', bold=True)
     
-    # 🔥 ฟังก์ชันความฉลาด: ดึงเฉพาะ "รหัสฐาน 2 ท่อนแรก" มาเทียบ (เช่น 617-115)
+    # 🔥 ฟังก์ชันความฉลาด: ดึงเฉพาะ "รหัสฐาน"
     def get_base_code(code_str):
         s = str(code_str).strip().lstrip('0')
         parts = s.split('-')
@@ -374,7 +374,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws['A1'].font = font_bold_xl
     ws['A1'].alignment = Alignment(horizontal='left', vertical='top')
     
-    # 🔥 จัดการชื่อบริษัทให้ตรงกลาง และให้มีพื้นที่กว้างขึ้น ไม่ตกขอบ
     ws.merge_cells('C1:E3')
     ws['C1'] = "CITIZEN MACHINERY ASIA CO., LTD."
     ws['C1'].font = font_bold_md
@@ -408,6 +407,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws['B9'] = f"{vendor_name}"
     ws['B9'].font = font_bold_md
     ws['B9'].border = border_bottom
+    ws['B9'].alignment = Alignment(horizontal='center', vertical='bottom') # 🔥 จัดกึ่งกลางบนเส้นใต้แล้ว!
     
     ws['A10'] = "The purpose (วัตถุประสงค์)"
     ws['A10'].font = font_normal
@@ -453,8 +453,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             base_part = get_base_code(part_val)
             base_rem = get_base_code(rem_val)
             
-            # ถ้าฐานเหมือนกันเป๊ะ (เช่น 1034 เจอ 1034) ให้ซ่อน!
-            # แต่ถ้าฐานเปลี่ยน (เช่น 115 เป็น 123 หรือ 1034 เป็น 1061) มันจะไม่เท่ากัน และจะดึงมาโชว์!
             if base_part == base_rem:
                 rem_val = ""
             
@@ -519,11 +517,11 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
 
     # --- Set Column Widths ---
-    ws.column_dimensions['A'].width = 16  # 🔥 ขยาย A ให้กว้างขึ้น ข้อความไม่ตก 
+    ws.column_dimensions['A'].width = 16 
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 10
     ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 24  # 🔥 ขยาย E เพื่อรองรับชื่อบริษัท
+    ws.column_dimensions['E'].width = 24
     ws.column_dimensions['F'].width = 20
     ws.column_dimensions['G'].width = 22
 
@@ -740,22 +738,23 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     part = str(r.get("Part No.", ""))
                     c_code = part
                     
-                    # 1. ค้นหา Item_Code แล้วดึง Casting_Group จาก Master Data (ปรับลอจิกตามที่คุณรินบอกเป๊ะๆ)
+                    # 1. 🔥 ดึง Casting_Group จาก Master Data ตรงๆ เลย (ตามรูปที่คุณรินแคปมาให้ดูเป๊ะๆ)
                     if master_items is not None:
-                        m = master_items[(master_items["Code_CMA"] == part) | (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
+                        m = master_items[(master_items["Code_CMA"].astype(str).str.strip() == part) | 
+                                         (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
+                        
                         if not m.empty:
-                            it_code = m.iloc[0]["Item_Code"]
-                            # ถ้ามี master_alloc ให้ไปดึง Casting_Group
-                            try:
-                                alloc = master_alloc[master_alloc["Item_Code"] == it_code]
-                                for _, a in alloc.iterrows():
-                                    if VENDOR_MAP.get(a["Supplier_Code"]) == target_vendor:
-                                        c_code = str(a["Casting_Group"]) # 🔥 ดึง Casting_Group มาใช้ตรงนี้!
-                                        break
-                            except:
-                                pass
+                            # ถ้ามีคอลัมน์ Route_Vendor ให้กรองเอาเฉพาะแถวที่เป็นของซัพเจ้านี้ (เช่น TMY)
+                            if "Route_Vendor" in m.columns:
+                                m_vendor = m[m["Route_Vendor"].astype(str).str.contains(target_vendor, na=False)]
+                                if not m_vendor.empty:
+                                    c_code = str(m_vendor.iloc[0]["Casting_Group"])
+                                else:
+                                    c_code = str(m.iloc[0]["Casting_Group"])
+                            else:
+                                c_code = str(m.iloc[0]["Casting_Group"])
                     
-                    # 2. 🔥 แทรก Dropdown ดักเคสพิเศษ TMY (1061F และ 1034-2F)
+                    # 2. 🔥 ดักเคสพิเศษ TMY 615-1034 (Dropdown จะโชว์ตรงนี้)
                     part_base = part.lstrip('0')
                     if target_vendor == "TMY" and part_base.startswith("615-1034"):
                         st.warning(f"⚠️ พบรายการพิเศษ TMY: {part}")
@@ -765,7 +764,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                             key=f"tmy_choice_{i}"
                         )
                     
-                    # 3. เก็บข้อมูลใส่ตารางเตรียมส่งไปให้ Excel
+                    # 3. เก็บลงตารางส่งให้ Excel
                     gatepass_items.append({
                         "Part No.": part,
                         "Assigned_Qty": str(int(qty_val)),

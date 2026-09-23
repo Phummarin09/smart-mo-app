@@ -763,7 +763,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     })
                                 
                 
-        
+        df_gp = pd.DataFrame(gatepass_items)
         with st.container(border=True):
             st.markdown(f"### **CITIZEN MACHINERY ASIA CO., LTD.**")
             st.caption("199, Mu 1 Phahon Yothin Road, Sanap Tuep Sub-district, Wang Noi, Ayutthaya 13170")

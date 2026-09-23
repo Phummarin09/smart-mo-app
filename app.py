@@ -352,7 +352,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     # --- Styles ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
-    font_bold_xl = Font(name='Calibri', size=32, bold=True) # CITIZEN ตัวใหญ่
+    border_bottom = Border(bottom=thin) # เตรียมไว้สำหรับขีดเส้นใต้
+    font_bold_xl = Font(name='Calibri', size=32, bold=True)
     font_bold_lg = Font(name='Calibri', size=14, bold=True)
     font_bold_md = Font(name='Calibri', size=12, bold=True)
     font_normal = Font(name='Calibri', size=10)
@@ -384,8 +385,9 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     
     # --- Info ---
     ws['A8'] = "Date (วันที่)"
-    ws['B8'] = "" 
     ws['A8'].font = font_normal
+    ws['B8'] = ""
+    ws['B8'].border = border_bottom # ขีดเส้นใต้แล้ว
     
     ws['F8'] = "No."
     ws['G8'] = gp_no
@@ -393,8 +395,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws['G8'].font = font_red; ws['G8'].alignment = Alignment(horizontal='left')
     
     ws['A9'] = "Send to(ส่ง)"
+    ws['A9'].font = font_normal
     ws['B9'] = f"{vendor_name}"
-    ws['A9'].font = font_normal; ws['B9'].font = font_bold_md
+    ws['B9'].font = font_bold_md
+    ws['B9'].border = border_bottom # ขีดเส้นใต้แล้ว
     
     ws['A10'] = "The purpose (วัตถุประสงค์)"
     ws['A10'].font = font_normal
@@ -422,7 +426,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         c.border = border_box
         ws.row_dimensions[13].height = 35
         
-    # --- Table Data (เปลี่ยนเป็น 20 Rows) ---
+    # --- Table Data (20 Rows) ---
     current_r = 14
     records_count = len(df_records)
     for slot in range(20):
@@ -436,8 +440,16 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             part_val = str(r.get('Part No.', '')).strip()
             rem_val = str(r.get('Remark', '')).strip()
             
-            # 🔥 กฎเหล็ก: ดักจับคำซ้ำ ถ้าหัก 0 ด้านหน้าแล้วเหมือนกันเป๊ะ ให้ลบทิ้งเป็นค่าว่าง!
-            if part_val.lstrip('0') == rem_val.lstrip('0'):
+            # 🔥 กฎเหล็กอัปเกรด: ตัดคำซ้ำแบบฉลาดสุดๆ
+            part_str = part_val.lstrip('0')
+            rem_str = rem_val.lstrip('0')
+            
+            # 1. ถ้าเหมือนกันเป๊ะ ให้ซ่อน
+            if part_str == rem_str:
+                rem_val = ""
+            # 2. ถ้ารหัส Remark แค่เติมติ่งท้ายจาก Part เดิม (เช่น 616-388 เติม -6R) ให้ซ่อน
+            # แต่ถ้ามีการเปลี่ยนติ่งท้ายเดิม (เช่น -1 กลายเป็น -6F) หรือเป็นเคสพิเศษ TMY 615-1034 จะรอดและถูกโชว์!
+            elif rem_str.startswith(part_str + "-") and part_str != "615-1034":
                 rem_val = ""
             
             ws[f'A{row_num}'] = slot + 1
@@ -469,24 +481,21 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ws[f'{col_l}{row_num}'].font = font_normal
 
     # --- Footer ---
-    footer_start = 14 + 20 + 1 # บรรทัดที่ 35 (ขยับลงตามตาราง 20 บรรทัด)
+    footer_start = 14 + 20 + 1 # บรรทัดที่ 35
     
     ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
     ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
     ws[f'A{footer_start+1}'] = "Date (วันที่)          ........................................................"
     ws[f'E{footer_start+1}'] = "Date (วันที่)          ........................................................"
     
-    # กล่อง Expect return date
     box_start = footer_start + 3 # บรรทัดที่ 38
     ws.merge_cells(f'A{box_start}:B{box_start+1}')
     ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
     ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     
-    # พื้นที่เขียนวันที่คืน
     ws.merge_cells(f'C{box_start}:G{box_start+1}')
     ws[f'C{box_start}'] = ""
     
-    # ตีกรอบให้กล่อง Expect return date
     for row in range(box_start, box_start+2):
         for col in ['A', 'B']:
             ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, 
@@ -499,7 +508,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
                                               top=thin if row==box_start else None, 
                                               bottom=thin if row==box_start+1 else None)
     
-    # Document Code
     doc_code_row = box_start + 2
     ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
     ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
@@ -509,7 +517,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 10
     ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['E'].width = 22 # 🔥 ขยายแล้ว! ไม่หล่นแน่นอน
     ws.column_dimensions['F'].width = 20
     ws.column_dimensions['G'].width = 22
 

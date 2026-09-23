@@ -360,11 +360,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_address = Font(name='Calibri', size=8)
     font_red = Font(name='Calibri', size=12, color='FF0000', bold=True)
     
-    # 🔥 ฟังก์ชันความฉลาด: ดึงเฉพาะ "รหัสฐาน" (เช่น 616-1034)
+    # 🔥 ฟังก์ชันความฉลาด: ดึงเฉพาะ "รหัสฐาน 2 ท่อนแรก" มาเทียบ (เช่น 617-115)
     def get_base_code(code_str):
-        s = str(code_str).strip().lstrip('0') # ตัด 0 ด้านหน้า
+        s = str(code_str).strip().lstrip('0')
         parts = s.split('-')
-        # เอาแค่ 2 ท่อนแรกมาต่อกัน ทิ้ง -1 หรือ -6R ด้านหลังไปเลย
         if len(parts) >= 2:
             return f"{parts[0]}-{parts[1]}"
         return s
@@ -375,10 +374,11 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws['A1'].font = font_bold_xl
     ws['A1'].alignment = Alignment(horizontal='left', vertical='top')
     
-    ws.merge_cells('C1:E1')
+    # 🔥 จัดการชื่อบริษัทให้ตรงกลาง และให้มีพื้นที่กว้างขึ้น ไม่ตกขอบ
+    ws.merge_cells('C1:E3')
     ws['C1'] = "CITIZEN MACHINERY ASIA CO., LTD."
     ws['C1'].font = font_bold_md
-    ws['C1'].alignment = Alignment(horizontal='left', vertical='top')
+    ws['C1'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     
     ws.merge_cells('F1:G4')
     addr = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
@@ -449,12 +449,12 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             part_val = str(r.get('Part No.', '')).strip()
             rem_val = str(r.get('Remark', '')).strip()
             
-            # 🔥 ลอจิกใหม่: เทียบแค่ "ฐาน"
+            # 🔥 กฎเหล็ก: เทียบรหัสฐาน
             base_part = get_base_code(part_val)
             base_rem = get_base_code(rem_val)
             
-            # ถ้ารหัสฐานตรงกัน = สินค้าตัวเดิม (ซ่อน Remark ทันที)
-            # แต่ถ้าฐานเปลี่ยน (เช่น เลือก 1061F มา) มันจะไม่ตรงกัน และดึงมาโชว์อัตโนมัติ!
+            # ถ้าฐานเหมือนกันเป๊ะ (เช่น 1034 เจอ 1034) ให้ซ่อน!
+            # แต่ถ้าฐานเปลี่ยน (เช่น 115 เป็น 123 หรือ 1034 เป็น 1061) มันจะไม่เท่ากัน และจะดึงมาโชว์!
             if base_part == base_rem:
                 rem_val = ""
             
@@ -519,11 +519,11 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
 
     # --- Set Column Widths ---
-    ws.column_dimensions['A'].width = 16  # 🔥 ขยาย A ให้กว้างเบิ้มๆ แล้วครับ ข้อความไม่ตกแน่นอน!
+    ws.column_dimensions['A'].width = 16  # 🔥 ขยาย A ให้กว้างขึ้น ข้อความไม่ตก 
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 10
     ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 20
+    ws.column_dimensions['E'].width = 24  # 🔥 ขยาย E เพื่อรองรับชื่อบริษัท
     ws.column_dimensions['F'].width = 20
     ws.column_dimensions['G'].width = 22
 
@@ -740,24 +740,28 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     part = str(r.get("Part No.", ""))
                     c_code = part
                     
-                    # 1. ค้นหา Casting_Code จาก Master Data ตามปกติ
+                    # 1. ค้นหา Item_Code แล้วดึง Casting_Group จาก Master Data (ปรับลอจิกตามที่คุณรินบอกเป๊ะๆ)
                     if master_items is not None:
                         m = master_items[(master_items["Code_CMA"] == part) | (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
                         if not m.empty:
                             it_code = m.iloc[0]["Item_Code"]
-                            alloc = master_alloc[master_alloc["Item_Code"] == it_code]
-                            for _, a in alloc.iterrows():
-                                if VENDOR_MAP.get(a["Supplier_Code"]) == target_vendor:
-                                    c_code = str(a["Casting_Code"])
-                                    break
+                            # ถ้ามี master_alloc ให้ไปดึง Casting_Group
+                            try:
+                                alloc = master_alloc[master_alloc["Item_Code"] == it_code]
+                                for _, a in alloc.iterrows():
+                                    if VENDOR_MAP.get(a["Supplier_Code"]) == target_vendor:
+                                        c_code = str(a["Casting_Group"]) # 🔥 ดึง Casting_Group มาใช้ตรงนี้!
+                                        break
+                            except:
+                                pass
                     
-                    # 2. 🔥 แทรก Dropdown สำหรับดักเคสพิเศษ TMY 615-1034 ตรงนี้ครับ!
+                    # 2. 🔥 แทรก Dropdown ดักเคสพิเศษ TMY (1061F และ 1034-2F)
                     part_base = part.lstrip('0')
                     if target_vendor == "TMY" and part_base.startswith("615-1034"):
                         st.warning(f"⚠️ พบรายการพิเศษ TMY: {part}")
                         c_code = st.selectbox(
                             f"กรุณาเลือกรหัส Casting สำหรับ {part}:",
-                            options=["0615-1061F", "0615-1034-2F"], # ตัวเลือกที่คุณรินกำหนดไว้
+                            options=["0615-1061F", "0615-1034-2F"], 
                             key=f"tmy_choice_{i}"
                         )
                     
@@ -766,10 +770,8 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                         "Part No.": part,
                         "Assigned_Qty": str(int(qty_val)),
                         "Invoice No.": st.session_state.iv_number,
-                        "Remark": c_code # ส่งรหัสที่ได้ (หรือที่เลือกจาก Dropdown) ไปให้ฟังก์ชัน Excel จัดการ
+                        "Remark": c_code 
                     })
-
-            # สร้าง DataFrame
         df_gp = pd.DataFrame(gatepass_items)
         with st.container(border=True):
             # (ด้านล่างจะเป็นโค้ดเดิม with st.container(border=True): ปล่อยไว้เหมือนเดิมครับ)

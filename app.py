@@ -352,7 +352,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     # --- Styles ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
-    border_bottom = Border(bottom=thin) # เตรียมไว้สำหรับขีดเส้นใต้
+    border_bottom = Border(bottom=thin)
     font_bold_xl = Font(name='Calibri', size=32, bold=True)
     font_bold_lg = Font(name='Calibri', size=14, bold=True)
     font_bold_md = Font(name='Calibri', size=12, bold=True)
@@ -360,6 +360,15 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_address = Font(name='Calibri', size=8)
     font_red = Font(name='Calibri', size=12, color='FF0000', bold=True)
     
+    # 🔥 ฟังก์ชันความฉลาด: ดึงเฉพาะ "รหัสฐาน" (เช่น 616-1034)
+    def get_base_code(code_str):
+        s = str(code_str).strip().lstrip('0') # ตัด 0 ด้านหน้า
+        parts = s.split('-')
+        # เอาแค่ 2 ท่อนแรกมาต่อกัน ทิ้ง -1 หรือ -6R ด้านหลังไปเลย
+        if len(parts) >= 2:
+            return f"{parts[0]}-{parts[1]}"
+        return s
+
     # --- Header ---
     ws.merge_cells('A1:B3')
     ws['A1'] = "CITIZEN"
@@ -387,7 +396,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws['A8'] = "Date (วันที่)"
     ws['A8'].font = font_normal
     ws['B8'] = ""
-    ws['B8'].border = border_bottom # ขีดเส้นใต้แล้ว
+    ws['B8'].border = border_bottom
     
     ws['F8'] = "No."
     ws['G8'] = gp_no
@@ -398,7 +407,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws['A9'].font = font_normal
     ws['B9'] = f"{vendor_name}"
     ws['B9'].font = font_bold_md
-    ws['B9'].border = border_bottom # ขีดเส้นใต้แล้ว
+    ws['B9'].border = border_bottom
     
     ws['A10'] = "The purpose (วัตถุประสงค์)"
     ws['A10'].font = font_normal
@@ -440,16 +449,13 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             part_val = str(r.get('Part No.', '')).strip()
             rem_val = str(r.get('Remark', '')).strip()
             
-            # 🔥 กฎเหล็กอัปเกรด: ตัดคำซ้ำแบบฉลาดสุดๆ
-            part_str = part_val.lstrip('0')
-            rem_str = rem_val.lstrip('0')
+            # 🔥 ลอจิกใหม่: เทียบแค่ "ฐาน"
+            base_part = get_base_code(part_val)
+            base_rem = get_base_code(rem_val)
             
-            # 1. ถ้าเหมือนกันเป๊ะ ให้ซ่อน
-            if part_str == rem_str:
-                rem_val = ""
-            # 2. ถ้ารหัส Remark แค่เติมติ่งท้ายจาก Part เดิม (เช่น 616-388 เติม -6R) ให้ซ่อน
-            # แต่ถ้ามีการเปลี่ยนติ่งท้ายเดิม (เช่น -1 กลายเป็น -6F) หรือเป็นเคสพิเศษ TMY 615-1034 จะรอดและถูกโชว์!
-            elif rem_str.startswith(part_str + "-") and part_str != "615-1034":
+            # ถ้ารหัสฐานตรงกัน = สินค้าตัวเดิม (ซ่อน Remark ทันที)
+            # แต่ถ้าฐานเปลี่ยน (เช่น เลือก 1061F มา) มันจะไม่ตรงกัน และดึงมาโชว์อัตโนมัติ!
+            if base_part == base_rem:
                 rem_val = ""
             
             ws[f'A{row_num}'] = slot + 1
@@ -481,14 +487,14 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ws[f'{col_l}{row_num}'].font = font_normal
 
     # --- Footer ---
-    footer_start = 14 + 20 + 1 # บรรทัดที่ 35
+    footer_start = 14 + 20 + 1 
     
     ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
     ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
     ws[f'A{footer_start+1}'] = "Date (วันที่)          ........................................................"
     ws[f'E{footer_start+1}'] = "Date (วันที่)          ........................................................"
     
-    box_start = footer_start + 3 # บรรทัดที่ 38
+    box_start = footer_start + 3 
     ws.merge_cells(f'A{box_start}:B{box_start+1}')
     ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
     ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
@@ -513,18 +519,17 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
 
     # --- Set Column Widths ---
-    ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['A'].width = 16  # 🔥 ขยาย A ให้กว้างเบิ้มๆ แล้วครับ ข้อความไม่ตกแน่นอน!
+    ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 10
     ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 22 # 🔥 ขยายแล้ว! ไม่หล่นแน่นอน
+    ws.column_dimensions['E'].width = 20
     ws.column_dimensions['F'].width = 20
     ws.column_dimensions['G'].width = 22
 
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()
-
 # 7. Sidebar
 st.sidebar.markdown("### 📁 Data Sources")
 if master_items is not None:
@@ -735,9 +740,8 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     part = str(r.get("Part No.", ""))
                     c_code = part
                     
-                    # 1. ค้นหา Casting_Code จาก Master Data
+                    # 1. ค้นหา Casting_Code จาก Master Data ตามปกติ
                     if master_items is not None:
-                        # หา Item_Code ก่อน (ใช้ str.lstrip('0') เพื่อเทียบแบบปอก 0)
                         m = master_items[(master_items["Code_CMA"] == part) | (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
                         if not m.empty:
                             it_code = m.iloc[0]["Item_Code"]
@@ -747,37 +751,28 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                                     c_code = str(a["Casting_Code"])
                                     break
                     
-                    # 2. 🔥 ดักเคสพิเศษ TMY (615-1034) ให้เด้งหน้าเว็บ
-                    part_stripped = part.lstrip('0')
-                    if target_vendor == "TMY" and part_stripped == "615-1034":
-                        st.markdown(f"**⚠️ พบรายการพิเศษ {part} (TMY)**")
-                        # (คุณรินสามารถแก้ "รหัสA" และ "รหัสB" เป็นโค้ดของจริงที่ใช้ได้เลยนะครับ)
-                        c_code = st.radio(
-                            f"กรุณาเลือกรหัส Casting Group สำหรับ {part}:",
-                            options=["615-1034-1F", "615-1034-2F"], # <-- แก้ตรงนี้ได้ครับ
-                            key=f"tmy_choice_{i}",
-                            horizontal=True
+                    # 2. 🔥 แทรก Dropdown สำหรับดักเคสพิเศษ TMY 615-1034 ตรงนี้ครับ!
+                    part_base = part.lstrip('0')
+                    if target_vendor == "TMY" and part_base.startswith("615-1034"):
+                        st.warning(f"⚠️ พบรายการพิเศษ TMY: {part}")
+                        c_code = st.selectbox(
+                            f"กรุณาเลือกรหัส Casting สำหรับ {part}:",
+                            options=["0615-1061F", "0615-1034-2F"], # ตัวเลือกที่คุณรินกำหนดไว้
+                            key=f"tmy_choice_{i}"
                         )
-
-                    # 3. 🧠 กฎปอกเลขศูนย์เทียบกัน เพื่อโชว์/ซ่อน Remark
-                    c_code_stripped = str(c_code).lstrip('0')
-                    remark_text = ""
                     
-                    # ถ้าปอก 0 แล้วไม่เหมือนกัน ถึงจะเอา c_code มาโชว์ใน Remark
-                    if part_stripped != c_code_stripped:
-                        remark_text = c_code
-
-                    # 4. เก็บข้อมูลเตรียมส่งไปวาดตาราง Excel
+                    # 3. เก็บข้อมูลใส่ตารางเตรียมส่งไปให้ Excel
                     gatepass_items.append({
                         "Part No.": part,
                         "Assigned_Qty": str(int(qty_val)),
-                        "Invoice No.": st.session_state.iv_number, # ดึงเลข IV
-                        "Remark": remark_text
+                        "Invoice No.": st.session_state.iv_number,
+                        "Remark": c_code # ส่งรหัสที่ได้ (หรือที่เลือกจาก Dropdown) ไปให้ฟังก์ชัน Excel จัดการ
                     })
-                                
-                
+
+            # สร้าง DataFrame
         df_gp = pd.DataFrame(gatepass_items)
         with st.container(border=True):
+            # (ด้านล่างจะเป็นโค้ดเดิม with st.container(border=True): ปล่อยไว้เหมือนเดิมครับ)
             st.markdown(f"### **CITIZEN MACHINERY ASIA CO., LTD.**")
             st.caption("199, Mu 1 Phahon Yothin Road, Sanap Tuep Sub-district, Wang Noi, Ayutthaya 13170")
             st.markdown(f"#### **ใบส่งของออก / OUTWARD DELIVERY NOTE (งานจ้างกัด / CUTTING SERVICE) — {target_vendor}**")

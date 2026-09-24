@@ -338,14 +338,12 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
 # 6. Export Outward Delivery Note / Gate Pass Excel
 def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import io
-    import os
     import math
     import re
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side
     from openpyxl.worksheet.pagebreak import Break
-    # นำเข้าโมดูลสำหรับจัดการรูปภาพ
-    from openpyxl.drawing.image import Image as OpenpyxlImage
+    import pandas as pd
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -372,6 +370,9 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
     border_bottom = Border(bottom=thin)
+    
+    # 🔥 อัปเดตฟอนต์โลโก้ตามที่คุณรินหามาให้
+    font_logo = Font(name='Cambria', size=45, bold=True) 
     
     font_title = Font(name='Calibri', size=20, bold=True) # ใบนำของออก
     font_company = Font(name='Calibri', size=16, bold=True) # ชื่อบริษัท
@@ -400,38 +401,30 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         
         # --- Header ---
         ws.merge_cells(f'A{offset+1}:B{offset+4}')
-        # 🔥 แทรกรูปภาพโลโก้
-        img_path = 'image.png'
-        if os.path.exists(img_path):
-            img = OpenpyxlImage(img_path)
-            img.width = 160  # ปรับขนาดกว้าง
-            img.height = 45  # ปรับขนาดสูง
-            ws.add_image(img, f'A{offset+1}')
-        else:
-            # ถ้าลืมวางรูปภาพ จะแสดงตัวหนังสือแทนกันระบบพัง
-            ws[f'A{offset+1}'] = "CITIZEN"
-            ws[f'A{offset+1}'].font = font_company
-            ws[f'A{offset+1}'].alignment = Alignment(horizontal='left', vertical='top')
+        # 🔥 ใช้ฟอนต์ Cambria 45 แทนรูปภาพ โชว์คำว่า CITIZEN ใหญ่เบิ้ม!
+        ws[f'A{offset+1}'] = "CITIZEN"
+        ws[f'A{offset+1}'].font = font_logo
+        ws[f'A{offset+1}'].alignment = Alignment(horizontal='left', vertical='center')
         
         ws.merge_cells(f'C{offset+1}:E{offset+3}')
         ws[f'C{offset+1}'] = "CITIZEN MACHINERY ASIA CO., LTD."
-        ws[f'C{offset+1}'].font = font_company # ใหญ่และหนา
+        ws[f'C{offset+1}'].font = font_company 
         ws[f'C{offset+1}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         
         ws.merge_cells(f'F{offset+1}:G{offset+4}')
         addr = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
         ws[f'F{offset+1}'] = addr
-        ws[f'F{offset+1}'].font = font_address # หนา
+        ws[f'F{offset+1}'].font = font_address 
         ws[f'F{offset+1}'].alignment = Alignment(horizontal='right', vertical='top', wrap_text=True)
         
         # --- Title ---
         ws.merge_cells(f'A{offset+6}:G{offset+6}')
-        ws.row_dimensions[offset+6].height = 30 # เพิ่มระยะบรรทัด
+        ws.row_dimensions[offset+6].height = 30 
         ws[f'A{offset+6}'] = "ใบนำของออกนอกโรงงาน"
-        ws[f'A{offset+6}'].font = font_title # ใหญ่และหนามาก
+        ws[f'A{offset+6}'].font = font_title 
         ws[f'A{offset+6}'].alignment = Alignment(horizontal='center', vertical='center')
         
-        # --- Info (เพิ่ม Spacing ให้โปร่งขึ้น) ---
+        # --- Info ---
         ws.row_dimensions[offset+8].height = 25
         ws[f'A{offset+8}'] = "Date (วันที่)"
         ws[f'A{offset+8}'].font = font_bold_md
@@ -455,10 +448,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+12}'] = "The purpose (วัตถุประสงค์)"
         ws[f'A{offset+12}'].font = font_bold_md
         
-        # 🔥 บังคับติ๊ก จ้างกัด Casting อัตโนมัติ
+        # 🔥 เปลี่ยนจากตัว O เป็นสี่เหลี่ยมเปล่า ☐ และเว้นวรรคให้สวยงาม
         ws.merge_cells(f'A{offset+13}:G{offset+13}')
         ws.row_dimensions[offset+13].height = 25
-        ws[f'A{offset+13}'] = "     O ส่งซ่อม (Send to repair)          ☑ จ้างกัด Casting          O อื่น ๆ (Other)________________________"
+        ws[f'A{offset+13}'] = "     ☐ ส่งซ่อม (Send to repair)          ☑ จ้างกัด Casting          ☐ อื่น ๆ (Other)________________________"
         ws[f'A{offset+13}'].font = font_bold_md
         ws[f'A{offset+13}'].alignment = Alignment(vertical='center')
         
@@ -484,7 +477,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         current_r = offset + 16
         for slot in range(20):
             row_num = current_r + slot
-            ws.row_dimensions[row_num].height = 26 # ความสูงตาราง
+            ws.row_dimensions[row_num].height = 26 
             
             data_idx = (p * 20) + slot
             if data_idx < records_count:
@@ -512,10 +505,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
                 ws[f'{col_l}{row_num}'].border = border_box
                 ws[f'{col_l}{row_num}'].font = font_normal_md
 
-        # --- Footer (ปรับระยะห่างและฟอนต์ตัวหนา) ---
+        # --- Footer ---
         footer_start = offset + 37 
         
-        ws.row_dimensions[footer_start].height = 30 # เพิ่มพื้นที่ให้เซ็นชื่อ
+        ws.row_dimensions[footer_start].height = 30 
         ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
         ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
         ws[f'A{footer_start}'].font = font_bold_md
@@ -527,8 +520,13 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{footer_start+2}'].font = font_bold_md
         ws[f'E{footer_start+2}'].font = font_bold_md
         
+        # 🔥 เพิ่มระยะห่างก่อนช่องวันส่งคืน (เพิ่มช่องว่างบรรทัดที่ 40)
+        ws.row_dimensions[footer_start+3].height = 10 
+        
         box_start = footer_start + 4 
         ws.merge_cells(f'A{box_start}:B{box_start+1}')
+        ws.row_dimensions[box_start].height = 20 # เพิ่มความสูงกล่อง
+        ws.row_dimensions[box_start+1].height = 20
         ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
         ws[f'A{box_start}'].font = font_bold_md
         ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)

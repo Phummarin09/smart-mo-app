@@ -229,12 +229,20 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
     ws = wb.active
     ws.title = "IV"
     
-    # 1. แก้ปัญหาตัวหนังสือเล็กและขอบเหลือเยอะ
+    # --- ตั้งค่าหน้ากระดาษ ---
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0 
+    
+    # บีบ Margin ลงอีกนิดเพื่อขยายพื้นที่ให้เต็มที่สุด
+    ws.page_margins.left = 0.2
+    ws.page_margins.right = 0.2
+    ws.page_margins.top = 0.3
+    ws.page_margins.bottom = 0.3
+    ws.page_margins.header = 0.1
+    ws.page_margins.footer = 0.1
 
     thin_border = Border(
         left=Side(style='thin', color='A6B0BA'),
@@ -253,6 +261,12 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
     fill_annot_hdr = PatternFill(start_color='C55A11', end_color='C55A11', fill_type='solid')
     fill_annot_cell = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
     fill_tot = PatternFill(start_color='EAEAEA', end_color='EAEAEA', fill_type='solid')
+    
+    # --- ยืดความสูงบรรทัดหัวๆ เพื่อดันเนื้อหาให้เต็มหน้า ---
+    ws.row_dimensions[1].height = 20
+    ws.row_dimensions[4].height = 25
+    ws.row_dimensions[6].height = 18
+    ws.row_dimensions[7].height = 18
 
     ws['A1'] = "CITIZEN MACHINERY VIETNAM CO., LTD"
     ws['A1'].font = font_title
@@ -270,14 +284,20 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
     ws['A7'] = f"Invoice Date: {iv_date}"
     ws['A7'].font = font_bold
     
+    # 🔥 จัดข้อความ 2 บรรทัดนี้ให้ "ชิดซ้าย" (left) ตามที่รีเควส
     ws['E6'] = "Consignee: CITIZEN MACHINERY ASIA CO., LTD."
     ws['E6'].font = font_bold
+    ws['E6'].alignment = Alignment(horizontal='left', vertical='center')
     
-    # 2. แก้ไขข้อความ Purpose ให้เหลือแค่ภาษาอังกฤษ
     ws['E7'] = "Purpose: Store Receiving & Allocation Record"
     ws['E7'].font = font_bold
+    ws['E7'].alignment = Alignment(horizontal='left', vertical='center')
 
     headers = ['No', 'Part No.', 'Description of goods', 'P.O No.', 'Quantity', 'Unit Price', 'Amount (JPY)', 'Supplier', 'Quantity (Allocated)']
+    
+    # ยืดความสูงหัวตาราง
+    ws.row_dimensions[9].height = 22
+    
     for col_idx, h_name in enumerate(headers, start=1):
         c = ws.cell(row=9, column=col_idx, value=h_name)
         c.font = Font(name='Arial', size=9, bold=True, color='FFFFFF')
@@ -289,6 +309,9 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
     tot_qty = 0
     tot_alloc = 0
     for _, r in df_table.iterrows():
+        # ยืดความสูงของแต่ละบรรทัดข้อมูลในตารางขึ้นอีกนิดนึง
+        ws.row_dimensions[current_row].height = 15.5
+        
         supp_val = str(r.get('Supplier', '')).strip()
         alloc_val = str(r.get('Quantity (Allocated)', '')).strip()
 
@@ -333,12 +356,14 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
 
         current_row += 1
 
+    # ยืดบรรทัด Total
+    ws.row_dimensions[current_row].height = 20
     ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=4)
     ws.cell(row=current_row, column=1, value="TOTAL").alignment = Alignment(horizontal='center', vertical='center')
-    ws.cell(row=current_row, column=5, value=tot_qty).alignment = Alignment(horizontal='right')
+    ws.cell(row=current_row, column=5, value=tot_qty).alignment = Alignment(horizontal='right', vertical='center')
     ws.cell(row=current_row, column=5).number_format = '#,##0'
-    ws.cell(row=current_row, column=8, value="TOTAL ALLOCATED").alignment = Alignment(horizontal='right')
-    ws.cell(row=current_row, column=9, value=tot_alloc if tot_alloc > 0 else "").alignment = Alignment(horizontal='center')
+    ws.cell(row=current_row, column=8, value="TOTAL ALLOCATED").alignment = Alignment(horizontal='right', vertical='center')
+    ws.cell(row=current_row, column=9, value=tot_alloc if tot_alloc > 0 else "").alignment = Alignment(horizontal='center', vertical='center')
 
     for col_idx in range(1, 10):
         cell_t = ws.cell(row=current_row, column=col_idx)
@@ -353,7 +378,6 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()
-
 # 6. Export Outward Delivery Note / Gate Pass Excel
 def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import io

@@ -888,8 +888,6 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
         st.caption("(รูปแบบข้อมูลอิงตามไฟล์แม่แบบ PUS (กรอกเฉพาะคอลัมน์ที่จำเป็น))")
 
-        import re # เพิ่มเครื่องมือช่วยสกัดรหัสฐาน
-
         col_d1, col_d2 = st.columns(2)
         with col_d1:
             default_start_date = pd.Timestamp.now().strftime("%d/%m/%Y 0:00")
@@ -901,63 +899,25 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         for _, r in st.session_state.final_split_df.iterrows():
             supp = str(r.get("Supplier", "")).strip()
             if supp and str(r.get("Quantity (Allocated)", "")).strip():
-                part = str(r.get("Part No.", "")).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code ฉบับขั้นเทพ (แก้ปัญหา R/F หาย และ 1061F ไม่มา) ---
-                c_code = part 
+                # --- 🔥 LOGIC ตามใจคุณริน (เรียบง่ายและถูกต้องที่สุด!) ---
+                # 1. ดึงจาก Part No. เดิมเลย (เพราะมันมี R มี F ติดมาตั้งแต่แรกแล้ว)
+                c_code = str(r.get("Part No.", "")).strip()
                 
-                # 1. สกัดรหัสฐาน (Item_Code) แบบ xxx-xxxx เพื่อเอาไปชนกับ Master Data
-                # เช่น 0615-1034-2F -> 615-1034 หรือ 0616-388-6R -> 616-388
-                base_item_match = re.search(r'0?(\d{3,4}-\d{3,4})', part)
-                base_item_code = base_item_match.group(1) if base_item_match else part.lstrip("0")
+                # 2. ถ้าในหน้าใบนำของออก (Tab 2) มีการเลือกโค้ดพิเศษ มันจะถูกเก็บใน Remark
+                # ให้เอาโค้ดใน Remark มาทับเลย!
+                remark_val = str(r.get("Remark", "")).strip()
+                if remark_val != "" and remark_val.lower() != "nan":
+                    c_code = remark_val
+                
+                # 3. ถ้าคุณรินมีซ่อนคอลัมน์ Casting_Group ไว้ในตาราง Tab 2 ก็สามารถให้มันดึงมาทับได้อีกสเต็ป (ถ้ามี)
+                # casting_val = str(r.get("Casting_Group", "")).strip()
+                # if casting_val != "" and casting_val.lower() != "nan":
+                #     c_code = casting_val
 
-                # 2. ค้นหารหัสทดแทน 1061F (จากดรอปดาวน์)
-                override_found = False
-                
-                # 2.1 หาในตารางก่อน (ถ้ามีคอลัมน์ Remark หรือที่เกี่ยวข้อง)
-                for col_name in ["Remark", "Casting_Group", "Casting_Code", "New_Code", "รหัสทดแทน"]:
-                    if col_name in r and pd.notna(r[col_name]):
-                        val = str(r[col_name]).strip()
-                        if val != "" and val.lower() != "nan":
-                            c_code = val
-                            override_found = True
-                            break
-                
-                # 2.2 โหมดนักสืบ: หาในหน่วยความจำเว็บ (กรณีไม่ได้เซฟลงตาราง)
-                if not override_found:
-                    for k, v in st.session_state.items():
-                        # ถ้ารหัสพาร์ท (เช่น 1034) อยู่ใน key ของดรอปดาวน์
-                        if base_item_code in str(k) and isinstance(v, str):
-                            if "1061" in v or "1034" in v or "F" in v or "R" in v: 
-                                c_code = v
-                                override_found = True
-                                break
-
-                # 3. ถ้าไม่มีการเลือกรหัสทดแทน ให้ดึง Casting_Group จาก Master Data
-                if not override_found and master_items is not None:
-                    if "Item_Code" in master_items.columns and "Casting_Group" in master_items.columns:
-                        # ชนด้วย Item_Code (xxx-xxxx) แบบเป๊ะๆ!
-                        m = master_items[master_items["Item_Code"] == base_item_code]
-                        if not m.empty:
-                            route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
-                            if route_col:
-                                try:
-                                    mapped_supp = VENDOR_MAP.get(supp, supp)
-                                except NameError:
-                                    mapped_supp = supp
-                                    
-                                m_vendor = m[(m[route_col] == supp) | (m[route_col] == mapped_supp)]
-                                if not m_vendor.empty:
-                                    c_code = m_vendor.iloc[0]["Casting_Group"]
-                                else:
-                                    c_code = m.iloc[0]["Casting_Group"]
-                            else:
-                                c_code = m.iloc[0]["Casting_Group"]
-                
-                # 4. ตัด 0 ข้างหน้าทิ้งเสมอ!
-                c_code = str(c_code).strip()
+                # 4. กฎเหล็ก: ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
                 if c_code.startswith("0"):
-                    c_code = c_code[1:] 
+                    c_code = c_code[1:]
                 # -------------------------------------------------------------
 
                 c_code_upper = str(c_code).upper()

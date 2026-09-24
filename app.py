@@ -351,7 +351,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     
     ws.views.sheetView[0].showGridLines = False
     
-    # --- 🖨️ ตั้งค่าหน้ากระดาษ ---
+    # --- 🖨️ ตั้งค่าหน้ากระดาษ (บังคับเต็ม A4) ---
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
     ws.sheet_properties.pageSetUpPr.fitToPage = True
@@ -373,7 +373,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_logo = Font(name='Cambria', size=45, bold=True) 
     font_title = Font(name='Calibri', size=20, bold=True)
     font_company = Font(name='Calibri', size=16, bold=True)
-    # 🔥 ลดขนาดฟอนต์ที่อยู่ลงนิดนึง (8.5) ป้องกันการตกบรรทัด
     font_address = Font(name='Calibri', size=8.5, bold=True) 
     font_bold_lg = Font(name='Calibri', size=14, bold=True)
     font_bold_md = Font(name='Calibri', size=12, bold=True)
@@ -409,7 +408,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'C{offset+1}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         
         ws.merge_cells(f'F{offset+1}:G{offset+4}')
-        # ขยับข้อความให้เรียง 4 บรรทัดพอดี
         addr = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
         ws[f'F{offset+1}'] = addr
         ws[f'F{offset+1}'].font = font_address 
@@ -474,8 +472,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         current_r = offset + 16
         for slot in range(20):
             row_num = current_r + slot
-            # 🔥 ย่นความสูงของตารางลง (จาก 30 เหลือ 25) เพื่อป้องกันข้อความขอบล่างทะลุหน้า 2
-            ws.row_dimensions[row_num].height = 25 
+            # 🔥 ขยายตารางเป็นความสูง 27 (ดึงให้สุดขอบล่าง A4 พอดี)
+            ws.row_dimensions[row_num].height = 27 
             
             data_idx = (p * 20) + slot
             if data_idx < records_count:
@@ -512,27 +510,34 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{footer_start}'].font = font_bold_md
         ws[f'E{footer_start}'].font = font_bold_md
         
-        ws.row_dimensions[footer_start+2].height = 20
+        ws.row_dimensions[footer_start+2].height = 25 # ขยายเพิ่มนิดนึงดึงขอบล่าง
         ws[f'A{footer_start+2}'] = "Date (วันที่)          ........................................................"
         ws[f'E{footer_start+2}'] = "Date (วันที่)          ........................................................"
         ws[f'A{footer_start+2}'].font = font_bold_md
         ws[f'E{footer_start+2}'].font = font_bold_md
         
-        # 🔥 เพิ่มบรรทัดว่าง 1 บรรทัด ก่อนถึงกล่องวันส่งคืน
         ws.row_dimensions[footer_start+3].height = 15 
         
         box_start = footer_start + 4 
-        ws.merge_cells(f'A{box_start}:B{box_start+1}')
-        ws.row_dimensions[box_start].height = 20
-        ws.row_dimensions[box_start+1].height = 20
-        ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
-        ws[f'A{box_start}'].font = font_bold_md
-        # 🔥 จัดชิดซ้าย (horizontal='left') ให้ตรงตามที่รีเควสเป๊ะๆ
-        ws[f'A{box_start}'].alignment = Alignment(horizontal='left', vertical='center', wrap_text=True) 
         
+        # 🔥 แยกบรรทัดให้มีช่องว่างตรงกลางแบบธรรมชาติ!
+        ws.merge_cells(f'A{box_start}:B{box_start}')
+        ws.row_dimensions[box_start].height = 22
+        ws[f'A{box_start}'] = "Expect return date"
+        ws[f'A{box_start}'].font = font_bold_md
+        ws[f'A{box_start}'].alignment = Alignment(horizontal='left', vertical='center')
+        
+        ws.merge_cells(f'A{box_start+1}:B{box_start+1}')
+        ws.row_dimensions[box_start+1].height = 22
+        ws[f'A{box_start+1}'] = "(วันส่งคืน)"
+        ws[f'A{box_start+1}'].font = font_bold_md
+        ws[f'A{box_start+1}'].alignment = Alignment(horizontal='left', vertical='center')
+        
+        # ขวาสุดรวมเซลล์ปกติ
         ws.merge_cells(f'C{box_start}:G{box_start+1}')
         ws[f'C{box_start}'] = ""
         
+        # ตีเส้นรอบกล่องให้ดูเป็นชิ้นเดียวกัน
         for row in range(box_start, box_start+2):
             for col in ['A', 'B']:
                 ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, right=thin if col=='B' else None, top=thin if row==box_start else None, bottom=thin if row==box_start+1 else None)
@@ -544,17 +549,16 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
         ws[f'A{doc_code_row}'].font = font_address
         
-        # ✂️ ตัดหน้ากระดาษ (Page Break) ที่บรรทัดสุดท้ายของแต่ละหน้า
         if p < total_pages - 1:
             page_break = Break(id=offset+44)
             ws.row_breaks.append(page_break)
 
-    # --- Set Column Widths (ขยาย G ขึ้นนิดนึงช่วยไม่ให้ที่อยู่ตกบรรทัด) ---
-    ws.column_dimensions['A'].width = 15 
-    ws.column_dimensions['B'].width = 25
-    ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 14
-    ws.column_dimensions['E'].width = 22
+    # --- Set Column Widths ---
+    ws.column_dimensions['A'].width = 13 
+    ws.column_dimensions['B'].width = 23 
+    ws.column_dimensions['C'].width = 9  
+    ws.column_dimensions['D'].width = 16 
+    ws.column_dimensions['E'].width = 24 
     ws.column_dimensions['F'].width = 18
     ws.column_dimensions['G'].width = 24
 

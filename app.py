@@ -339,6 +339,7 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
 def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import io
     import math
+    import re
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side
     from openpyxl.worksheet.pagebreak import Break
@@ -349,20 +350,20 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     
     ws.views.sheetView[0].showGridLines = False
     
-    # --- 🖨️ ตั้งค่าหน้ากระดาษสำหรับการปรินต์ ---
+    # --- 🖨️ ตั้งค่าหน้ากระดาษให้เต็ม A4 ---
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
     ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.page_setup.fitToWidth = 1   # บังคับกว้าง 1 หน้า
-    ws.page_setup.fitToHeight = 0  # ความสูงปล่อยไหลตามจำนวนหน้า (0 = ออโต้)
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0 
     
-    # ตั้งค่าระยะขอบให้แคบลง เพื่อขยายพื้นที่ตาราง
+    # บีบ Margin ให้แคบลง เพื่อให้ตารางขยายได้เต็มที่
     ws.page_margins.left = 0.25
     ws.page_margins.right = 0.25
-    ws.page_margins.top = 0.5
-    ws.page_margins.bottom = 0.5
-    ws.page_margins.header = 0.3
-    ws.page_margins.footer = 0.3
+    ws.page_margins.top = 0.25      # 🔥 ลดขอบบน
+    ws.page_margins.bottom = 0.25   # 🔥 ลดขอบล่าง
+    ws.page_margins.header = 0.2
+    ws.page_margins.footer = 0.2
 
     # --- Styles ---
     thin = Side(style='thin', color='000000')
@@ -375,12 +376,24 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_address = Font(name='Calibri', size=8)
     font_red = Font(name='Calibri', size=12, color='FF0000', bold=True)
 
+    # 🔥 ฟังก์ชันช่วย: รันเลขที่ใบนำของออกให้หน้าถัดไป (เช่น 001 -> 002)
+    def get_page_gp_no(base_no, page_index):
+        if page_index == 0:
+            return base_no
+        match = re.search(r'(\d+)$', str(base_no))
+        if match:
+            num_str = match.group(1)
+            new_num = str(int(num_str) + page_index).zfill(len(num_str))
+            return str(base_no)[:match.start()] + new_num
+        return f"{base_no}-{page_index+1}" # สำรองเผื่อไม่มีตัวเลข
+
     # 🧮 คำนวณจำนวนหน้า (20 รายการ / หน้า)
     records_count = len(df_records)
     total_pages = max(1, math.ceil(records_count / 20))
     
     for p in range(total_pages):
-        offset = p * 40  # 1 หน้าจะกินพื้นที่ 40 บรรทัด (เพื่อให้จัดรูปแบบง่าย)
+        offset = p * 40  # 1 หน้ากินพื้นที่ 40 บรรทัด Excel
+        current_gp_no = get_page_gp_no(gp_no, p) # 🔥 อัปเดตเลขเอกสารประจำหน้า
         
         # --- Header ---
         ws.merge_cells(f'A{offset+1}:B{offset+3}')
@@ -412,7 +425,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'B{offset+8}'].border = border_bottom
         
         ws[f'F{offset+8}'] = "No."
-        ws[f'G{offset+8}'] = gp_no
+        ws[f'G{offset+8}'] = current_gp_no # 🔥 ใส่เลขที่เอกสารที่รันแล้ว
         ws[f'F{offset+8}'].font = font_bold_md; ws[f'F{offset+8}'].alignment = Alignment(horizontal='right')
         ws[f'G{offset+8}'].font = font_red; ws[f'G{offset+8}'].alignment = Alignment(horizontal='left')
         
@@ -453,8 +466,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         current_r = offset + 14
         for slot in range(20):
             row_num = current_r + slot
-            # 🔥 ขยายความสูงของบรรทัดให้ดัน Footer ไปชิดขอบล่างพอดี A4
-            ws.row_dimensions[row_num].height = 23 
+            # 🔥 ยืดความสูงบรรทัดจาก 23 เป็น 27 เพื่อให้ตารางยาวเต็มหน้า A4 ปิดช่องว่างด้านล่าง
+            ws.row_dimensions[row_num].height = 27 
             
             data_idx = (p * 20) + slot
             
@@ -464,7 +477,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
                 part_val = str(r.get('Part No.', '')).strip()
                 rem_val = str(r.get('Remark', '')).strip() 
                 
-                ws[f'A{row_num}'] = data_idx + 1
+                ws[f'A{row_num}'] = slot + 1 # 🔥 รีเซ็ตลำดับเป็น 1-20 เสมอ ไม่ว่าหน้าไหน
                 ws[f'B{row_num}'] = part_val
                 ws[f'C{row_num}'] = qty_val
                 ws[f'D{row_num}'] = ""
@@ -524,12 +537,12 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
         ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
         
-        # ✂️ แทรกตัวแบ่งหน้า (Page Break) เมื่อจบแต่ละหน้า (ยกเว้นหน้าสุดท้าย)
+        # ✂️ ตัดหน้ากระดาษ (Page Break)
         if p < total_pages - 1:
             page_break = Break(id=offset+40)
             ws.row_breaks.append(page_break)
 
-    # --- Set Column Widths (ตั้งค่าครั้งเดียวมีผลทุกหน้า) ---
+    # --- Set Column Widths ---
     ws.column_dimensions['A'].width = 16 
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 10

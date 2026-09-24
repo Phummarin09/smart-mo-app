@@ -343,9 +343,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side
     from openpyxl.worksheet.pagebreak import Break
-    # 🔥 นำเข้าไลบรารีสำหรับทำข้อความผสมฟอนต์ (Rich Text)
-    from openpyxl.cell.rich_text import TextBlock, CellRichText
-    from openpyxl.cell.text import InlineFont
     import pandas as pd
     
     wb = openpyxl.Workbook()
@@ -381,10 +378,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_bold_md = Font(name='Calibri', size=12, bold=True)
     font_normal_md = Font(name='Calibri', size=12)
     font_red_no = Font(name='Calibri', size=16, color='FF0000', bold=True)
-    
-    # 🔥 กำหนดฟอนต์ย่อยสำหรับใช้ในเซลล์เดียวกัน
-    font_wd = InlineFont(rFont='Wingdings 2', sz=14)  # สำหรับกล่องสี่เหลี่ยม
-    font_cal = InlineFont(rFont='Calibri', sz=12, b=True) # สำหรับข้อความปกติ
 
     def get_page_gp_no(base_no, page_index):
         if page_index == 0:
@@ -432,7 +425,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+8}'] = "Date (วันที่)"
         ws[f'A{offset+8}'].font = font_bold_md
         ws[f'B{offset+8}'] = ""
-        ws[f'B{offset+8}'].border = Border(bottom=thin)
+        ws[f'B{offset+8}'].border = border_bottom
         
         ws[f'F{offset+8}'] = "No."
         ws[f'G{offset+8}'] = current_gp_no 
@@ -444,7 +437,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+10}'].font = font_bold_md
         ws[f'B{offset+10}'] = f"{vendor_name}"
         ws[f'B{offset+10}'].font = font_bold_lg
-        ws[f'B{offset+10}'].border = Border(bottom=thin)
+        ws[f'B{offset+10}'].border = border_bottom
         ws[f'B{offset+10}'].alignment = Alignment(horizontal='center', vertical='bottom')
         
         ws.row_dimensions[offset+12].height = 20
@@ -454,18 +447,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws.merge_cells(f'A{offset+13}:G{offset+13}')
         ws.row_dimensions[offset+13].height = 25
         
-        # 🔥 ใช้ CellRichText เพื่อผสมฟอนต์ในเซลล์เดียวกัน! 
-        # (สี่เหลี่ยม = Wingdings 2, ข้อความ = Calibri)
-        rt = CellRichText(
-            TextBlock(font_cal, "     "),
-            TextBlock(font_wd, "£"), # สี่เหลี่ยมว่าง
-            TextBlock(font_cal, " ส่งซ่อม (Send to repair)          "),
-            TextBlock(font_wd, "R"), # สี่เหลี่ยมมีติ๊กถูก
-            TextBlock(font_cal, " จ้างกัด Casting          "),
-            TextBlock(font_wd, "£"), # สี่เหลี่ยมว่าง
-            TextBlock(font_cal, " อื่น ๆ (Other)________________________")
-        )
-        ws[f'A{offset+13}'] = rt
+        # 🔥 กลับมาใช้ข้อความปกติ แต่ใช้ Unicode ที่ปลอดภัยจาก Emoji (☐ และ ☑)
+        # สัญลักษณ์ \u2610 คือสี่เหลี่ยมว่าง / \u2611\uFE0E คือสี่เหลี่ยมติ๊กถูกแบบเส้นโปร่ง
+        ws[f'A{offset+13}'] = "     \u2610 ส่งซ่อม (Send to repair)          \u2611\uFE0E จ้างกัด Casting          \u2610 อื่น ๆ (Other)________________________"
+        ws[f'A{offset+13}'].font = font_bold_md
         ws[f'A{offset+13}'].alignment = Alignment(vertical='center')
         
         # --- Table Headers ---

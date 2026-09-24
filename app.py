@@ -367,6 +367,9 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
 
     # --- Styles ---
     thin = Side(style='thin', color='000000')
+    border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
+    border_bottom = Border(bottom=thin)
+    
     font_logo = Font(name='Cambria', size=45, bold=True) 
     font_title = Font(name='Calibri', size=20, bold=True)
     font_company = Font(name='Calibri', size=16, bold=True)
@@ -422,7 +425,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+8}'] = "Date (วันที่)"
         ws[f'A{offset+8}'].font = font_bold_md
         ws[f'B{offset+8}'] = ""
-        ws[f'B{offset+8}'].border = Border(bottom=thin)
+        ws[f'B{offset+8}'].border = border_bottom
         
         ws[f'F{offset+8}'] = "No."
         ws[f'G{offset+8}'] = current_gp_no 
@@ -434,7 +437,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+10}'].font = font_bold_md
         ws[f'B{offset+10}'] = f"{vendor_name}"
         ws[f'B{offset+10}'].font = font_bold_lg
-        ws[f'B{offset+10}'].border = Border(bottom=thin)
+        ws[f'B{offset+10}'].border = border_bottom
         ws[f'B{offset+10}'].alignment = Alignment(horizontal='center', vertical='bottom')
         
         ws.row_dimensions[offset+12].height = 20
@@ -443,7 +446,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         
         ws.merge_cells(f'A{offset+13}:G{offset+13}')
         ws.row_dimensions[offset+13].height = 25
-        ws[f'A{offset+13}'] = "     ☐ ส่งซ่อม (Send to repair)          ☑ จ้างกัด Casting          ☐ อื่น ๆ (Other)________________________"
+        
+        # 🔥 แก้ไขจุดนี้: บังคับให้เป็นตัวหนังสือเส้นโปร่ง (Text Rendering) ป้องกันกล่องดำ
+        ws[f'A{offset+13}'] = "     ☐ ส่งซ่อม (Send to repair)          ☑︎ จ้างกัด Casting          ☐ อื่น ๆ (Other)________________________"
+        
         ws[f'A{offset+13}'].font = font_bold_md
         ws[f'A{offset+13}'].alignment = Alignment(vertical='center')
         
@@ -457,7 +463,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ("F", "Invoice No."),
             ("G", "Remark\nคำอธิบาย")
         ]
-        border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
         for col, text in headers:
             c = ws[f'{col}{offset+15}']
             c.value = text
@@ -470,7 +475,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         current_r = offset + 16
         for slot in range(20):
             row_num = current_r + slot
-            # 🔥 ขยายตารางเป็นความสูง 29 (ดึงให้สุดขอบล่าง A4 พอดีที่สุด)
             ws.row_dimensions[row_num].height = 29 
             
             data_idx = (p * 20) + slot
@@ -508,7 +512,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{footer_start}'].font = font_bold_md
         ws[f'E{footer_start}'].font = font_bold_md
         
-        ws.row_dimensions[footer_start+2].height = 30 # ขยายเพิ่มนิดนึงดึงขอบล่าง
+        ws.row_dimensions[footer_start+2].height = 30 
         ws[f'A{footer_start+2}'] = "Date (วันที่)          ........................................................"
         ws[f'E{footer_start+2}'] = "Date (วันที่)          ........................................................"
         ws[f'A{footer_start+2}'].font = font_bold_md
@@ -518,30 +522,24 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         
         box_start = footer_start + 4 
         
-        # 🔥 แก้กล่องวันส่งคืน: ใช้ 3 บรรทัด (Row 41, 42, 43) ให้มีบรรทัดว่างตรงกลาง
-        # บรรทัดที่ 1 (บน)
         ws.merge_cells(f'A{box_start}:B{box_start}')
         ws.row_dimensions[box_start].height = 20
         ws[f'A{box_start}'] = "Expect return date"
         ws[f'A{box_start}'].font = font_bold_md
         ws[f'A{box_start}'].alignment = Alignment(horizontal='left', vertical='top')
         
-        # บรรทัดที่ 2 (กลาง - เว้นว่าง)
         ws.merge_cells(f'A{box_start+1}:B{box_start+1}')
-        ws.row_dimensions[box_start+1].height = 15 # นี่คือช่องว่างที่คุณรินต้องการ
+        ws.row_dimensions[box_start+1].height = 15 
         
-        # บรรทัดที่ 3 (ล่าง)
         ws.merge_cells(f'A{box_start+2}:B{box_start+2}')
         ws.row_dimensions[box_start+2].height = 20
         ws[f'A{box_start+2}'] = "(วันส่งคืน)"
         ws[f'A{box_start+2}'].font = font_bold_md
         ws[f'A{box_start+2}'].alignment = Alignment(horizontal='left', vertical='bottom')
         
-        # ขวาสุดรวมเซลล์ 3 บรรทัดรวด
         ws.merge_cells(f'C{box_start}:G{box_start+2}')
         ws[f'C{box_start}'] = ""
         
-        # ตีเส้นรอบกล่องใหญ่ (3 บรรทัด)
         for row in range(box_start, box_start+3):
             for col in ['A', 'B']:
                 ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, right=thin if col=='B' else None, top=thin if row==box_start else None, bottom=thin if row==box_start+2 else None)

@@ -901,7 +901,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             if supp and str(r["Quantity (Allocated)"]).strip():
                 part = str(r["Part No."]).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code ที่ถูกต้อง 100% ---
+                # --- 🔥 LOGIC การดึง Casting Code ที่ถูกต้อง ---
                 c_code = part 
                 
                 # 1. เช็คก่อนว่ามีรหัสพิเศษที่เลือกจากดรอปดาวน์ (เก็บใน Remark) ไหม?
@@ -910,7 +910,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     # ถ้ามีการเลือกจากดรอปดาวน์ ให้ใช้ตัวนี้เลย!
                     c_code = remark_val 
                 else:
-                    # 2. ถ้าไม่มี ค่อยไปหา Casting Group จาก Master Data
+                    # 2. ถ้าไม่มี ค่อยไปหา Casting จาก Master Data
                     if master_items is not None:
                         m = master_items[(master_items["Code_CMA"] == part) | (master_items["Item_Code"] == part)]
                         if not m.empty:
@@ -918,10 +918,14 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                             alloc = master_alloc[master_alloc["Item_Code"] == it_code]
                             
                             vendor_alloc = alloc[alloc["Supplier_Code"].map(VENDOR_MAP).fillna(alloc["Supplier_Code"]) == supp]
+                            
+                            # 🔥 แก้ไข Error ตรงนี้: ใช้ฟังก์ชัน .get() เพื่อดักจับทั้ง 2 ชื่อคอลัมน์
                             if not vendor_alloc.empty:
-                                c_code = vendor_alloc.iloc[0]["Casting_Group"] # ใช้ Casting_Group แล้ว!
+                                row_data = vendor_alloc.iloc[0]
+                                c_code = row_data.get("Casting_Group", row_data.get("Casting_Code", part))
                             elif not alloc.empty:
-                                c_code = alloc.iloc[0]["Casting_Group"] # ใช้ Casting_Group แล้ว!
+                                row_data = alloc.iloc[0]
+                                c_code = row_data.get("Casting_Group", row_data.get("Casting_Code", part))
                 
                 # 3. ตัด 0 ข้างหน้าทิ้ง
                 c_code = str(c_code).strip()
@@ -945,7 +949,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 if qty > 0:
                     mc_rows.append({
                         "_Supplier": supp,
-                        "Item CD": c_code, # ดึงโค้ดตามเงื่อนไขเป๊ะๆ
+                        "Item CD": c_code, 
                         "Manufacturing loc. CD": "OS01",
                         "BOM pattern": 1,
                         "Lot No.": "*",

@@ -894,39 +894,61 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
         with col_d2:
             mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
+            
+        # ฟังก์ชันตัด 0 ที่คุณรินใช้ใน Tab 2
+        def get_base_ui(s):
+            s_clean = str(s).strip().lstrip('0')
+            pts = s_clean.split('-')
+            if len(pts) >= 2:
+                return f"{pts[0]}-{pts[1]}"
+            return s_clean
 
         mc_rows = []
-        for _, r in st.session_state.final_split_df.iterrows():
+        for i, r in st.session_state.final_split_df.iterrows():
             supp = str(r.get("Supplier", "")).strip()
             
-            # หาชื่อคอลัมน์ Quantity ที่แท้จริง (ดักจับช่องว่าง)
+            # หาชื่อคอลัมน์ Quantity
             qty_col = next((col for col in r.index if "Quantity" in str(col) and "Allocated" in str(col)), "Quantity (Allocated)")
-            qty_val = str(r.get(qty_col, "")).strip()
+            qty_val_str = str(r.get(qty_col, "0")).strip()
+            try:
+                qty_val = float(qty_val_str)
+            except ValueError:
+                qty_val = 0
 
-            if supp and qty_val:
-                # หาชื่อคอลัมน์ Part No. ที่แท้จริง
+            if supp and qty_val > 0:
+                # หาชื่อคอลัมน์ Part No.
                 part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
                 part = str(r.get(part_col, "")).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code แบบถอนรากถอนโคน ---
+                # --- 🔥 LOGIC การดึง Casting Code (ถอดแบบมาจาก Tab 2 เป๊ะๆ) ---
                 c_code = part
                 
-                # 1. ตามหาคอลัมน์ "Remark" แบบไม่สนตัวพิมพ์เล็ก-ใหญ่ หรือช่องว่าง
-                remark_val = ""
-                for col in r.index:
-                    if "remark" in str(col).lower():
-                        val = str(r[col]).strip()
-                        if val != "" and val.lower() != "nan":
-                            remark_val = val
-                            break # เจอแล้วหยุดหา
+                # 1. ดึง Casting_Group จาก Master Data (เหมือน Tab 2)
+                if master_items is not None:
+                    # เทียบแบบลอก 0 ออก
+                    m = master_items[(master_items["Code_CMA"].astype(str).str.strip() == part) |
+                                     (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
+                    
+                    if not m.empty:
+                        if "Route_Vendor" in m.columns:
+                            m_vendor = m[m["Route_Vendor"].astype(str).str.contains(supp, na=False)]
+                            if not m_vendor.empty:
+                                c_code = str(m_vendor.iloc[0]["Casting_Group"])
+                            else:
+                                c_code = str(m.iloc[0]["Casting_Group"])
+                        else:
+                            c_code = str(m.iloc[0]["Casting_Group"])
                 
-                # 2. ถ้าเจอค่าใน Remark ให้ใช้ค่าใน Remark ทับเลยทันที!
-                if remark_val != "":
-                    c_code = remark_val
+                # 2. ดักเคสพิเศษ 1034 (เหมือน Tab 2 เปี๊ยบ!)
+                part_base = part.lstrip('0')
+                if supp == "TMY" and part_base.startswith("615-1034"):
+                    # ดึงค่าจาก state ของ dropdown ที่เคยเลือกไว้ใน Tab 2!
+                    dropdown_key = f"tmy_choice_{i}"
+                    if dropdown_key in st.session_state:
+                        c_code = st.session_state[dropdown_key]
                 
-                # 3. กฎเหล็ก: ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
-                if c_code.startswith("0"):
-                    c_code = c_code[1:]
+                # 3. ตัด 0 ข้างหน้าทิ้ง (เหมือน Tab 2)
+                c_code = c_code.lstrip('0')
                 # -------------------------------------------------------------
 
                 c_code_upper = str(c_code).upper()
@@ -937,42 +959,36 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 else:
                     storage_loc = "MP02"
 
-                try:
-                    qty = int(float(qty_val))
-                except ValueError:
-                    qty = 0
-
-                if qty > 0:
-                    mc_rows.append({
-                        "_Supplier": supp,
-                        "Item CD": c_code, # 🚀 ใช้รหัสที่ถูกต้อง (จาก Remark หรือ Part No)
-                        "Manufacturing loc. CD": "OS01",
-                        "BOM pattern": 1,
-                        "Lot No.": "*",
-                        "SERIAL No.": "",
-                        "MFG No.": "",
-                        "Sched. manufacturing finish date": "",
-                        "Actual manufacturing start date": mfg_start_date,
-                        "Actual manufacturing finish date": "",
-                        "Posting date": "",
-                        "Sched. manufacturing qty.": qty,
-                        "Actual manufacturing qty.": qty,
-                        "Completed": "",
-                        "Storage loc. CD": storage_loc,
-                        "Operation dept.": "PUS",
-                        "Responsible PIC": "",
-                        "Manufacturing note": "",
-                        "Line CD": "",
-                        "Defective reason CD": "",
-                        "Defective qty.": "",
-                        "Defective item yard": "",
-                        "Defective item rack No.": "",
-                        "Mold branch No.": "",
-                        "Number of cavities": "",
-                        "Shot count": "",
-                        "Shot wt.": "",
-                        "Spec. CD": ""
-                    })
+                mc_rows.append({
+                    "_Supplier": supp,
+                    "Item CD": c_code, 
+                    "Manufacturing loc. CD": "OS01",
+                    "BOM pattern": 1,
+                    "Lot No.": "*",
+                    "SERIAL No.": "",
+                    "MFG No.": "",
+                    "Sched. manufacturing finish date": "",
+                    "Actual manufacturing start date": mfg_start_date,
+                    "Actual manufacturing finish date": "",
+                    "Posting date": "",
+                    "Sched. manufacturing qty.": int(qty_val),
+                    "Actual manufacturing qty.": int(qty_val),
+                    "Completed": "",
+                    "Storage loc. CD": storage_loc,
+                    "Operation dept.": "PUS",
+                    "Responsible PIC": "",
+                    "Manufacturing note": "",
+                    "Line CD": "",
+                    "Defective reason CD": "",
+                    "Defective qty.": "",
+                    "Defective item yard": "",
+                    "Defective item rack No.": "",
+                    "Mold branch No.": "",
+                    "Number of cavities": "",
+                    "Shot count": "",
+                    "Shot wt.": "",
+                    "Spec. CD": ""
+                })
 
         df_all_mc = pd.DataFrame(mc_rows)
 

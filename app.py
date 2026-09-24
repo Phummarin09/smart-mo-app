@@ -898,24 +898,33 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         mc_rows = []
         for _, r in st.session_state.final_split_df.iterrows():
             supp = str(r.get("Supplier", "")).strip()
-            if supp and str(r.get("Quantity (Allocated)", "")).strip():
+            
+            # หาชื่อคอลัมน์ Quantity ที่แท้จริง (ดักจับช่องว่าง)
+            qty_col = next((col for col in r.index if "Quantity" in str(col) and "Allocated" in str(col)), "Quantity (Allocated)")
+            qty_val = str(r.get(qty_col, "")).strip()
+
+            if supp and qty_val:
+                # หาชื่อคอลัมน์ Part No. ที่แท้จริง
+                part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
+                part = str(r.get(part_col, "")).strip()
                 
-                # --- 🔥 LOGIC ตามใจคุณริน (เรียบง่ายและถูกต้องที่สุด!) ---
-                # 1. ดึงจาก Part No. เดิมเลย (เพราะมันมี R มี F ติดมาตั้งแต่แรกแล้ว)
-                c_code = str(r.get("Part No.", "")).strip()
+                # --- 🔥 LOGIC การดึง Casting Code แบบถอนรากถอนโคน ---
+                c_code = part
                 
-                # 2. ถ้าในหน้าใบนำของออก (Tab 2) มีการเลือกโค้ดพิเศษ มันจะถูกเก็บใน Remark
-                # ให้เอาโค้ดใน Remark มาทับเลย!
-                remark_val = str(r.get("Remark", "")).strip()
-                if remark_val != "" and remark_val.lower() != "nan":
+                # 1. ตามหาคอลัมน์ "Remark" แบบไม่สนตัวพิมพ์เล็ก-ใหญ่ หรือช่องว่าง
+                remark_val = ""
+                for col in r.index:
+                    if "remark" in str(col).lower():
+                        val = str(r[col]).strip()
+                        if val != "" and val.lower() != "nan":
+                            remark_val = val
+                            break # เจอแล้วหยุดหา
+                
+                # 2. ถ้าเจอค่าใน Remark ให้ใช้ค่าใน Remark ทับเลยทันที!
+                if remark_val != "":
                     c_code = remark_val
                 
-                # 3. ถ้าคุณรินมีซ่อนคอลัมน์ Casting_Group ไว้ในตาราง Tab 2 ก็สามารถให้มันดึงมาทับได้อีกสเต็ป (ถ้ามี)
-                # casting_val = str(r.get("Casting_Group", "")).strip()
-                # if casting_val != "" and casting_val.lower() != "nan":
-                #     c_code = casting_val
-
-                # 4. กฎเหล็ก: ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
+                # 3. กฎเหล็ก: ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
                 if c_code.startswith("0"):
                     c_code = c_code[1:]
                 # -------------------------------------------------------------
@@ -929,14 +938,14 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     storage_loc = "MP02"
 
                 try:
-                    qty = int(float(r["Quantity (Allocated)"]))
+                    qty = int(float(qty_val))
                 except ValueError:
                     qty = 0
 
                 if qty > 0:
                     mc_rows.append({
                         "_Supplier": supp,
-                        "Item CD": c_code, 
+                        "Item CD": c_code, # 🚀 ใช้รหัสที่ถูกต้อง (จาก Remark หรือ Part No)
                         "Manufacturing loc. CD": "OS01",
                         "BOM pattern": 1,
                         "Lot No.": "*",

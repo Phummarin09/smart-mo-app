@@ -366,21 +366,19 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws.page_margins.header = 0.2
     ws.page_margins.footer = 0.2
 
-    # --- Styles ใหม่ (ใหญ่และหนาขึ้นตามรีเควส) ---
+    # --- Styles ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
     border_bottom = Border(bottom=thin)
     
-    # 🔥 อัปเดตฟอนต์โลโก้ตามที่คุณรินหามาให้
     font_logo = Font(name='Cambria', size=45, bold=True) 
-    
-    font_title = Font(name='Calibri', size=20, bold=True) # ใบนำของออก
-    font_company = Font(name='Calibri', size=16, bold=True) # ชื่อบริษัท
-    font_address = Font(name='Calibri', size=9, bold=True) # ที่อยู่
-    font_bold_lg = Font(name='Calibri', size=14, bold=True) # หัวข้อ Send to, Date
-    font_bold_md = Font(name='Calibri', size=12, bold=True) # Footer, Table Header
-    font_normal_md = Font(name='Calibri', size=12) # ข้อมูลในตาราง
-    font_red_no = Font(name='Calibri', size=16, color='FF0000', bold=True) # เลข No.
+    font_title = Font(name='Calibri', size=20, bold=True)
+    font_company = Font(name='Calibri', size=16, bold=True)
+    font_address = Font(name='Calibri', size=9, bold=True)
+    font_bold_lg = Font(name='Calibri', size=14, bold=True)
+    font_bold_md = Font(name='Calibri', size=12, bold=True)
+    font_normal_md = Font(name='Calibri', size=12)
+    font_red_no = Font(name='Calibri', size=16, color='FF0000', bold=True)
 
     def get_page_gp_no(base_no, page_index):
         if page_index == 0:
@@ -396,12 +394,11 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     total_pages = max(1, math.ceil(records_count / 20))
     
     for p in range(total_pages):
-        offset = p * 45  # ขยาย offset เป็น 45 บรรทัดต่อหน้า เพื่อเพิ่ม Spacing
+        offset = p * 45  
         current_gp_no = get_page_gp_no(gp_no, p)
         
         # --- Header ---
         ws.merge_cells(f'A{offset+1}:B{offset+4}')
-        # 🔥 ใช้ฟอนต์ Cambria 45 แทนรูปภาพ โชว์คำว่า CITIZEN ใหญ่เบิ้ม!
         ws[f'A{offset+1}'] = "CITIZEN"
         ws[f'A{offset+1}'].font = font_logo
         ws[f'A{offset+1}'].alignment = Alignment(horizontal='left', vertical='center')
@@ -448,7 +445,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+12}'] = "The purpose (วัตถุประสงค์)"
         ws[f'A{offset+12}'].font = font_bold_md
         
-        # 🔥 เปลี่ยนจากตัว O เป็นสี่เหลี่ยมเปล่า ☐ และเว้นวรรคให้สวยงาม
         ws.merge_cells(f'A{offset+13}:G{offset+13}')
         ws.row_dimensions[offset+13].height = 25
         ws[f'A{offset+13}'] = "     ☐ ส่งซ่อม (Send to repair)          ☑ จ้างกัด Casting          ☐ อื่น ๆ (Other)________________________"
@@ -477,7 +473,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         current_r = offset + 16
         for slot in range(20):
             row_num = current_r + slot
-            ws.row_dimensions[row_num].height = 26 
+            # 🔥 ยืดความสูงของแต่ละบรรทัดให้มากขึ้น เพื่อดัน Footer ให้เต็มขอบล่างกระดาษ
+            ws.row_dimensions[row_num].height = 30 
             
             data_idx = (p * 20) + slot
             if data_idx < records_count:
@@ -520,16 +517,17 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{footer_start+2}'].font = font_bold_md
         ws[f'E{footer_start+2}'].font = font_bold_md
         
-        # 🔥 เพิ่มระยะห่างก่อนช่องวันส่งคืน (เพิ่มช่องว่างบรรทัดที่ 40)
-        ws.row_dimensions[footer_start+3].height = 10 
+        # 🔥 เพิ่มบรรทัดว่าง 1 บรรทัดเต็มๆ (เว้นระยะห่างก่อนถึงกล่องวันส่งคืน)
+        ws.row_dimensions[footer_start+3].height = 25 
         
         box_start = footer_start + 4 
         ws.merge_cells(f'A{box_start}:B{box_start+1}')
-        ws.row_dimensions[box_start].height = 20 # เพิ่มความสูงกล่อง
+        ws.row_dimensions[box_start].height = 20
         ws.row_dimensions[box_start+1].height = 20
         ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
         ws[f'A{box_start}'].font = font_bold_md
-        ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        # 🔥 จัดข้อความชิดซ้าย (horizontal='left')
+        ws[f'A{box_start}'].alignment = Alignment(horizontal='left', vertical='center', wrap_text=True) 
         
         ws.merge_cells(f'C{box_start}:G{box_start+1}')
         ws[f'C{box_start}'] = ""
@@ -541,6 +539,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
                 ws[f'{col}{row}'].border = Border(left=thin if col=='C' else None, right=thin if col=='G' else None, top=thin if row==box_start else None, bottom=thin if row==box_start+1 else None)
         
         doc_code_row = box_start + 2
+        ws.row_dimensions[doc_code_row].height = 20
         ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
         ws[f'A{doc_code_row}'].font = font_address
         

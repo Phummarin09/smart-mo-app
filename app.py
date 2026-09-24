@@ -894,14 +894,6 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
         with col_d2:
             mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
-            
-        # ฟังก์ชันตัด 0 ที่คุณรินใช้ใน Tab 2
-        def get_base_ui(s):
-            s_clean = str(s).strip().lstrip('0')
-            pts = s_clean.split('-')
-            if len(pts) >= 2:
-                return f"{pts[0]}-{pts[1]}"
-            return s_clean
 
         mc_rows = []
         for i, r in st.session_state.final_split_df.iterrows():
@@ -918,14 +910,23 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             if supp and qty_val > 0:
                 # หาชื่อคอลัมน์ Part No.
                 part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
-                part = str(r.get(part_col, "")).strip()
+                # 1. ตั้งต้นด้วยโค้ดจากหน้าใบนำของออก (ที่บอกว่ามันถูกอยู่แล้ว)
+                part = str(r.get(part_col, "")).strip() 
                 
-                # --- 🔥 LOGIC การดึง Casting Code (ถอดแบบมาจาก Tab 2 เป๊ะๆ) ---
                 c_code = part
                 
-                # 1. ดึง Casting_Group จาก Master Data (เหมือน Tab 2)
-                if master_items is not None:
-                    # เทียบแบบลอก 0 ออก
+                # 2. เช็คว่ามันคือเคสพิเศษ 1034 ที่ถูกเปลี่ยนโค้ดผ่านดรอปดาวน์หน้าเว็บหรือไม่
+                part_base = part.lstrip('0')
+                if supp == "TMY" and part_base.startswith("615-1034"):
+                    dropdown_key = f"tmy_choice_{i}"
+                    # ถ้าเจอตัวเลือกจากดรอปดาวน์ ให้ดึงมาทับเลย
+                    if dropdown_key in st.session_state:
+                        c_code = st.session_state[dropdown_key]
+
+                # 3. ถ้าไม่ใช่เคส 1034 แต่บังเอิญใน Master Data มันระบุว่าต้องใช้ Casting_Group ที่มีหางพิเศษ (เช่น เคสใบนำของออก)
+                # เราจะไป "เทียบดูว่าต้องดึง Casting_Group แบบไหนมาใช้" เพื่อให้แน่ใจว่าได้หาง R/F ตรงซัพพลายเออร์
+                elif master_items is not None:
+                    # ค้นหาใน Master Data
                     m = master_items[(master_items["Code_CMA"].astype(str).str.strip() == part) |
                                      (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
                     
@@ -933,21 +934,14 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                         if "Route_Vendor" in m.columns:
                             m_vendor = m[m["Route_Vendor"].astype(str).str.contains(supp, na=False)]
                             if not m_vendor.empty:
+                                # เจอ Casting_Group ตรงเป๊ะตาม Supplier
                                 c_code = str(m_vendor.iloc[0]["Casting_Group"])
                             else:
                                 c_code = str(m.iloc[0]["Casting_Group"])
                         else:
                             c_code = str(m.iloc[0]["Casting_Group"])
                 
-                # 2. ดักเคสพิเศษ 1034 (เหมือน Tab 2 เปี๊ยบ!)
-                part_base = part.lstrip('0')
-                if supp == "TMY" and part_base.startswith("615-1034"):
-                    # ดึงค่าจาก state ของ dropdown ที่เคยเลือกไว้ใน Tab 2!
-                    dropdown_key = f"tmy_choice_{i}"
-                    if dropdown_key in st.session_state:
-                        c_code = st.session_state[dropdown_key]
-                
-                # 3. ตัด 0 ข้างหน้าทิ้ง (เหมือน Tab 2)
+                # 4. ท่าไม้ตาย: ตัด 0 ข้างหน้าสุดทิ้งเสมอ
                 c_code = c_code.lstrip('0')
                 # -------------------------------------------------------------
 
@@ -961,7 +955,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
 
                 mc_rows.append({
                     "_Supplier": supp,
-                    "Item CD": c_code, 
+                    "Item CD": c_code, # 🚀 ใช้รหัสที่ถูกต้องแบบหางไม่กุดแล้ว!
                     "Manufacturing loc. CD": "OS01",
                     "BOM pattern": 1,
                     "Lot No.": "*",

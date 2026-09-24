@@ -894,8 +894,8 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
         with col_d2:
             mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
-            
-        # ฟังก์ชันตัด 0 และสกัดรหัสฐาน (ลอกมาจาก Tab 2 ของคุณรินเป๊ะๆ!)
+
+        # ฟังก์ชันสกัดรหัสฐาน (เพื่อเอาไปค้นใน Master Data)
         def get_base_ui(s):
             s_clean = str(s).strip().lstrip('0')
             pts = s_clean.split('-')
@@ -918,41 +918,55 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
                 part = str(r.get(part_col, "")).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code (ถอดแบบมาจากหน้าใบนำของออก) ---
                 c_code = part
                 
-                # 1. ดึง Casting_Group จาก Master Data 
-                if master_items is not None:
-                    m = master_items[(master_items["Code_CMA"].astype(str).str.strip() == part) |
-                                     (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
-                    if not m.empty:
-                        # หาว่าคอลัมน์ Route ใช้ชื่ออะไร (รองรับทั้ง Route_Vendor และ Route_Vend)
-                        route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
-                        if route_col:
-                            # กรองตาม Supplier (ดึงข้อมูลซัพให้ครบทั้ง 4 เจ้าตามที่คุณรินบอก)
-                            m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
-                            if not m_vendor.empty:
-                                master_c_code = str(m_vendor.iloc[0]["Casting_Group"])
-                            else:
-                                master_c_code = str(m.iloc[0]["Casting_Group"])
-                        else:
-                            master_c_code = str(m.iloc[0]["Casting_Group"])
-                        
-                        # 🔥 หัวใจสำคัญ: เทียบรหัสฐานเหมือนที่ Tab 2 ทำ!
-                        if get_base_ui(part) != get_base_ui(master_c_code):
-                            # ถ้ารหัสฐานไม่เหมือนกัน (เช่น 115 เปลี่ยนเป็น 123) ถึงจะเอารหัสจาก Master Data มาใช้
-                            c_code = master_c_code
-                        # แต่ถ้าฐานเหมือนกัน (เช่น 388 กับ 388) ให้ c_code = part เหมือนเดิม เพื่อรักษาหาง -6R เอาไว้!
-
-                # 2. ดักเคสพิเศษ TMY 615-1034 (ดึงดรอปดาวน์)
-                part_base = part.lstrip('0')
-                if supp == "TMY" and part_base.startswith("615-1034"):
+                # 1. เช็คก่อนว่ามี "รหัสพิเศษ" (เช่น 123-6R หรือ 1061F) ส่งมาจาก Tab 2 ไหม
+                remark_val = ""
+                for col in r.index:
+                    if "remark" in str(col).lower():
+                        val = str(r[col]).strip()
+                        if val != "" and val.lower() != "nan":
+                            remark_val = val
+                            break
+                            
+                # ดักเคสพิเศษ 1034 ถ้าไม่มีใน Remark แต่มีค้างในหน่วยความจำหน้าเว็บ
+                if not remark_val and supp == "TMY" and part.lstrip('0').startswith("615-1034"):
                     dropdown_key = f"tmy_choice_{i}"
                     if dropdown_key in st.session_state:
-                        c_code = st.session_state[dropdown_key]
+                        remark_val = st.session_state[dropdown_key]
+
+                # --- 🔥 พระเอกขี่ม้าขาวอยู่ตรงนี้ครับ ---
+                if remark_val:
+                    # ถ้ามีรหัสพิเศษ ให้ใช้รหัสพิเศษเลย! (จบปัญหา 1061F และ 123)
+                    c_code = remark_val
+                else:
+                    # ถ้าเป็นโค้ดปกติ ให้ค้นหา Master Data เพื่อดึงหาง R/F กลับมา!
+                    if master_items is not None:
+                        part_clean = part.lstrip('0')
+                        base_part = get_base_ui(part_clean) # แปลง 616-388-6 เป็น 616-388
+                        
+                        # ค้นหาด้วย Item_Code แบบดั้งเดิมที่เคยทำได้!
+                        m = master_items[
+                            (master_items["Code_CMA"].astype(str).str.strip() == part) |
+                            (master_items["Code_CMA"].astype(str).str.lstrip('0') == part_clean) |
+                            (master_items["Item_Code"].astype(str).str.strip() == part) |
+                            (master_items["Item_Code"].astype(str).str.strip() == base_part)
+                        ]
+                        
+                        if not m.empty:
+                            route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
+                            if route_col:
+                                # ล็อกเป้า Supplier เพื่อความแม่นยำ (รองรับทั้ง 4 เจ้า)
+                                m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
+                                if not m_vendor.empty:
+                                    c_code = str(m_vendor.iloc[0]["Casting_Group"])
+                                else:
+                                    c_code = str(m.iloc[0]["Casting_Group"])
+                            else:
+                                c_code = str(m.iloc[0]["Casting_Group"])
                 
-                # 3. ตัด 0 ข้างหน้าทิ้ง
-                c_code = str(c_code).strip().lstrip('0')
+                # 3. ท่าไม้ตายสุดท้าย: ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
+                c_code = c_code.lstrip('0')
                 # -------------------------------------------------------------
 
                 c_code_upper = str(c_code).upper()
@@ -965,7 +979,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
 
                 mc_rows.append({
                     "_Supplier": supp,
-                    "Item CD": c_code, # 🚀 สมบูรณ์ 100%: โค้ด 123 มา, โค้ดปกติหางไม่ด้วน, 1061F มา, ครบ 4 เจ้า!
+                    "Item CD": c_code, # 🚀 โค้ดปกติหางมาครบ 1061F ก็มาเต็ม ซัพมาครบ 4 เจ้า!
                     "Manufacturing loc. CD": "OS01",
                     "BOM pattern": 1,
                     "Lot No.": "*",

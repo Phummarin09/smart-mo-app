@@ -888,7 +888,6 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
         st.caption("(รูปแบบข้อมูลอิงตามไฟล์แม่แบบ PUS (กรอกเฉพาะคอลัมน์ที่จำเป็น))")
 
-        # สร้างช่องให้แก้ไขวันที่ได้ก่อน Export
         col_d1, col_d2 = st.columns(2)
         with col_d1:
             default_start_date = pd.Timestamp.now().strftime("%d/%m/%Y 0:00")
@@ -897,21 +896,21 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
 
         mc_rows = []
-        # ดึงข้อมูลที่แบ่งเปอร์เซ็นต์เสร็จแล้วมาทำ
         for _, r in st.session_state.final_split_df.iterrows():
             supp = str(r["Supplier"]).strip()
             if supp and str(r["Quantity (Allocated)"]).strip():
                 part = str(r["Part No."]).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code และตัดศูนย์ ---
-                c_code = part
+                # --- 🔥 LOGIC การดึง Casting Code ที่ถูกต้อง 100% ---
+                c_code = part 
                 
-                # 1. เช็คว่า "มีรหัสทดแทน (Remark)" ที่ถูกเลือกมาไหม
+                # 1. เช็คก่อนว่ามีรหัสพิเศษที่เลือกจากดรอปดาวน์ (เก็บใน Remark) ไหม?
                 remark_val = str(r.get("Remark", "")).strip() 
                 if remark_val != "" and remark_val.lower() != "nan":
-                    c_code = remark_val # ถ้ามีใช้รหัสใน Remark เลย
+                    # ถ้ามีการเลือกจากดรอปดาวน์ ให้ใช้ตัวนี้เลย!
+                    c_code = remark_val 
                 else:
-                    # 2. ถ้าไม่มี ค่อยไปหาใน Master Data
+                    # 2. ถ้าไม่มี ค่อยไปหา Casting Group จาก Master Data
                     if master_items is not None:
                         m = master_items[(master_items["Code_CMA"] == part) | (master_items["Item_Code"] == part)]
                         if not m.empty:
@@ -920,17 +919,16 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                             
                             vendor_alloc = alloc[alloc["Supplier_Code"].map(VENDOR_MAP).fillna(alloc["Supplier_Code"]) == supp]
                             if not vendor_alloc.empty:
-                                c_code = vendor_alloc.iloc[0]["Casting_Code"]
+                                c_code = vendor_alloc.iloc[0]["Casting_Group"] # ใช้ Casting_Group แล้ว!
                             elif not alloc.empty:
-                                c_code = alloc.iloc[0]["Casting_Code"]
+                                c_code = alloc.iloc[0]["Casting_Group"] # ใช้ Casting_Group แล้ว!
                 
-                # 3. ทำการ "ตัด 0 ข้างหน้าทิ้ง" (ถ้ามี)
+                # 3. ตัด 0 ข้างหน้าทิ้ง
                 c_code = str(c_code).strip()
                 if c_code.startswith("0"):
-                    c_code = c_code[1:]
+                    c_code = c_code[1:] # ตัด 0 ตัวแรกทิ้ง
                 # -------------------------------------------------------------
 
-                # กำหนดสถานที่เก็บตามเงื่อนไข F หรือ R
                 c_code_upper = str(c_code).upper()
                 if 'F' in c_code_upper:
                     storage_loc = "MP03"
@@ -945,17 +943,16 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     qty = 0
 
                 if qty > 0:
-                    # จัดเรียงคอลัมน์เตรียมลงไฟล์ MO
                     mc_rows.append({
                         "_Supplier": supp,
-                        "Item CD": c_code, # ใช้โค้ดที่ถูกต้องแล้ว!
+                        "Item CD": c_code, # ดึงโค้ดตามเงื่อนไขเป๊ะๆ
                         "Manufacturing loc. CD": "OS01",
                         "BOM pattern": 1,
                         "Lot No.": "*",
                         "SERIAL No.": "",
                         "MFG No.": "",
-                        "Sched. manufacturing finish date": "", # เว้นว่าง
-                        "Actual manufacturing start date": mfg_start_date, # ใช้วันที่ที่ตั้ง
+                        "Sched. manufacturing finish date": "",
+                        "Actual manufacturing start date": mfg_start_date,
                         "Actual manufacturing finish date": "",
                         "Posting date": "",
                         "Sched. manufacturing qty.": qty,

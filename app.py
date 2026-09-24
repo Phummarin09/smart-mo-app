@@ -338,17 +338,32 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
 # 6. Export Outward Delivery Note / Gate Pass Excel
 def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import io
+    import math
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side
+    from openpyxl.worksheet.pagebreak import Break
     
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "OUTWARD DELIVERY NOTE"
     
     ws.views.sheetView[0].showGridLines = False
+    
+    # --- 🖨️ ตั้งค่าหน้ากระดาษสำหรับการปรินต์ ---
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1   # บังคับกว้าง 1 หน้า
+    ws.page_setup.fitToHeight = 0  # ความสูงปล่อยไหลตามจำนวนหน้า (0 = ออโต้)
     
+    # ตั้งค่าระยะขอบให้แคบลง เพื่อขยายพื้นที่ตาราง
+    ws.page_margins.left = 0.25
+    ws.page_margins.right = 0.25
+    ws.page_margins.top = 0.5
+    ws.page_margins.bottom = 0.5
+    ws.page_margins.header = 0.3
+    ws.page_margins.footer = 0.3
+
     # --- Styles ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -359,164 +374,162 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_normal = Font(name='Calibri', size=10)
     font_address = Font(name='Calibri', size=8)
     font_red = Font(name='Calibri', size=12, color='FF0000', bold=True)
-    
-    # 🔥 ฟังก์ชันความฉลาด: ดึงเฉพาะ "รหัสฐาน"
-    def get_base_code(code_str):
-        s = str(code_str).strip().lstrip('0')
-        parts = s.split('-')
-        if len(parts) >= 2:
-            return f"{parts[0]}-{parts[1]}"
-        return s
 
-    # --- Header ---
-    ws.merge_cells('A1:B3')
-    ws['A1'] = "CITIZEN"
-    ws['A1'].font = font_bold_xl
-    ws['A1'].alignment = Alignment(horizontal='left', vertical='top')
-    
-    ws.merge_cells('C1:E3')
-    ws['C1'] = "CITIZEN MACHINERY ASIA CO., LTD."
-    ws['C1'].font = font_bold_md
-    ws['C1'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    
-    ws.merge_cells('F1:G4')
-    addr = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
-    ws['F1'] = addr
-    ws['F1'].font = font_address
-    ws['F1'].alignment = Alignment(horizontal='right', vertical='top', wrap_text=True)
-    
-    # --- Title ---
-    ws.merge_cells('A6:G6')
-    ws['A6'] = "ใบนำของออกนอกโรงงาน"
-    ws['A6'].font = font_bold_lg
-    ws['A6'].alignment = Alignment(horizontal='center', vertical='center')
-    
-    # --- Info ---
-    ws['A8'] = "Date (วันที่)"
-    ws['A8'].font = font_normal
-    ws['B8'] = ""
-    ws['B8'].border = border_bottom
-    
-    ws['F8'] = "No."
-    ws['G8'] = gp_no
-    ws['F8'].font = font_bold_md; ws['F8'].alignment = Alignment(horizontal='right')
-    ws['G8'].font = font_red; ws['G8'].alignment = Alignment(horizontal='left')
-    
-    ws['A9'] = "Send to(ส่ง)"
-    ws['A9'].font = font_normal
-    ws['B9'] = f"{vendor_name}"
-    ws['B9'].font = font_bold_md
-    ws['B9'].border = border_bottom
-    ws['B9'].alignment = Alignment(horizontal='center', vertical='bottom') # 🔥 จัดกึ่งกลางบนเส้นใต้แล้ว!
-    
-    ws['A10'] = "The purpose (วัตถุประสงค์)"
-    ws['A10'].font = font_normal
-    
-    ws.merge_cells('A11:G11')
-    ws['A11'] = "     O ส่งซ่อม (Send to repair)          O จ้างกัด Casting          O อื่น ๆ (Other)________________________"
-    ws['A11'].font = font_normal
-    ws['A11'].alignment = Alignment(vertical='center')
-    
-    # --- Table Headers ---
-    headers = [
-        ("A", "Item\nลำดับ"),
-        ("B", "Description\nรายการ"),
-        ("C", "Q'ty\nจำนวน"),
-        ("D", "Delivery Date\nวันส่งมอบ"),
-        ("E", "PO.No.\nเลขที่ใบสั่งซื้อ"),
-        ("F", "Invoice No."),
-        ("G", "Remark\nคำอธิบาย")
-    ]
-    for col, text in headers:
-        c = ws[f'{col}13']
-        c.value = text
-        c.font = font_bold_md
-        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        c.border = border_box
-        ws.row_dimensions[13].height = 35
-        
-    # --- Table Data (20 Rows) ---
-    current_r = 14
+    # 🧮 คำนวณจำนวนหน้า (20 รายการ / หน้า)
     records_count = len(df_records)
-    for slot in range(20):
-        row_num = current_r + slot
-        ws.row_dimensions[row_num].height = 20
+    total_pages = max(1, math.ceil(records_count / 20))
+    
+    for p in range(total_pages):
+        offset = p * 40  # 1 หน้าจะกินพื้นที่ 40 บรรทัด (เพื่อให้จัดรูปแบบง่าย)
         
-        if slot < records_count:
-            r = df_records.iloc[slot]
-            qty_val = r.get('Assigned_Qty', 0)
-            
-            part_val = str(r.get('Part No.', '')).strip()
-            rem_val = str(r.get('Remark', '')).strip()
-            
-            # 🔥 กฎเหล็ก: เทียบรหัสฐาน
-            base_part = get_base_code(part_val)
-            base_rem = get_base_code(rem_val)
-            
-            if base_part == base_rem:
-                rem_val = ""
-            
-            ws[f'A{row_num}'] = slot + 1
-            ws[f'B{row_num}'] = part_val
-            ws[f'C{row_num}'] = qty_val
-            ws[f'D{row_num}'] = ""
-            ws[f'E{row_num}'] = ""
-            ws[f'F{row_num}'] = r.get('Invoice No.', '')
-            ws[f'G{row_num}'] = rem_val
-        else:
-            ws[f'A{row_num}'] = ""
-            ws[f'B{row_num}'] = ""
-            ws[f'C{row_num}'] = ""
-            ws[f'D{row_num}'] = ""
-            ws[f'E{row_num}'] = ""
-            ws[f'F{row_num}'] = ""
-            ws[f'G{row_num}'] = ""
-            
-        ws[f'A{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
-        ws[f'B{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
-        ws[f'C{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
-        ws[f'D{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
-        ws[f'E{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
-        ws[f'F{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
-        ws[f'G{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
+        # --- Header ---
+        ws.merge_cells(f'A{offset+1}:B{offset+3}')
+        ws[f'A{offset+1}'] = "CITIZEN"
+        ws[f'A{offset+1}'].font = font_bold_xl
+        ws[f'A{offset+1}'].alignment = Alignment(horizontal='left', vertical='top')
         
-        for col_l in ["A", "B", "C", "D", "E", "F", "G"]:
-            ws[f'{col_l}{row_num}'].border = border_box
-            ws[f'{col_l}{row_num}'].font = font_normal
+        ws.merge_cells(f'C{offset+1}:E{offset+3}')
+        ws[f'C{offset+1}'] = "CITIZEN MACHINERY ASIA CO., LTD."
+        ws[f'C{offset+1}'].font = font_bold_md
+        ws[f'C{offset+1}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        
+        ws.merge_cells(f'F{offset+1}:G{offset+4}')
+        addr = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
+        ws[f'F{offset+1}'] = addr
+        ws[f'F{offset+1}'].font = font_address
+        ws[f'F{offset+1}'].alignment = Alignment(horizontal='right', vertical='top', wrap_text=True)
+        
+        # --- Title ---
+        ws.merge_cells(f'A{offset+6}:G{offset+6}')
+        ws[f'A{offset+6}'] = "ใบนำของออกนอกโรงงาน"
+        ws[f'A{offset+6}'].font = font_bold_lg
+        ws[f'A{offset+6}'].alignment = Alignment(horizontal='center', vertical='center')
+        
+        # --- Info ---
+        ws[f'A{offset+8}'] = "Date (วันที่)"
+        ws[f'A{offset+8}'].font = font_normal
+        ws[f'B{offset+8}'] = ""
+        ws[f'B{offset+8}'].border = border_bottom
+        
+        ws[f'F{offset+8}'] = "No."
+        ws[f'G{offset+8}'] = gp_no
+        ws[f'F{offset+8}'].font = font_bold_md; ws[f'F{offset+8}'].alignment = Alignment(horizontal='right')
+        ws[f'G{offset+8}'].font = font_red; ws[f'G{offset+8}'].alignment = Alignment(horizontal='left')
+        
+        ws[f'A{offset+9}'] = "Send to(ส่ง)"
+        ws[f'A{offset+9}'].font = font_normal
+        ws[f'B{offset+9}'] = f"{vendor_name}"
+        ws[f'B{offset+9}'].font = font_bold_md
+        ws[f'B{offset+9}'].border = border_bottom
+        ws[f'B{offset+9}'].alignment = Alignment(horizontal='center', vertical='bottom')
+        
+        ws[f'A{offset+10}'] = "The purpose (วัตถุประสงค์)"
+        ws[f'A{offset+10}'].font = font_normal
+        
+        ws.merge_cells(f'A{offset+11}:G{offset+11}')
+        ws[f'A{offset+11}'] = "     O ส่งซ่อม (Send to repair)          O จ้างกัด Casting          O อื่น ๆ (Other)________________________"
+        ws[f'A{offset+11}'].font = font_normal
+        ws[f'A{offset+11}'].alignment = Alignment(vertical='center')
+        
+        # --- Table Headers ---
+        headers = [
+            ("A", "Item\nลำดับ"),
+            ("B", "Description\nรายการ"),
+            ("C", "Q'ty\nจำนวน"),
+            ("D", "Delivery Date\nวันส่งมอบ"),
+            ("E", "PO.No.\nเลขที่ใบสั่งซื้อ"),
+            ("F", "Invoice No."),
+            ("G", "Remark\nคำอธิบาย")
+        ]
+        for col, text in headers:
+            c = ws[f'{col}{offset+13}']
+            c.value = text
+            c.font = font_bold_md
+            c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            c.border = border_box
+            ws.row_dimensions[offset+13].height = 35
+            
+        # --- Table Data (20 Rows ต่อ 1 หน้า) ---
+        current_r = offset + 14
+        for slot in range(20):
+            row_num = current_r + slot
+            # 🔥 ขยายความสูงของบรรทัดให้ดัน Footer ไปชิดขอบล่างพอดี A4
+            ws.row_dimensions[row_num].height = 23 
+            
+            data_idx = (p * 20) + slot
+            
+            if data_idx < records_count:
+                r = df_records.iloc[data_idx]
+                qty_val = r.get('Assigned_Qty', 0)
+                part_val = str(r.get('Part No.', '')).strip()
+                rem_val = str(r.get('Remark', '')).strip() 
+                
+                ws[f'A{row_num}'] = data_idx + 1
+                ws[f'B{row_num}'] = part_val
+                ws[f'C{row_num}'] = qty_val
+                ws[f'D{row_num}'] = ""
+                ws[f'E{row_num}'] = ""
+                ws[f'F{row_num}'] = r.get('Invoice No.', '')
+                ws[f'G{row_num}'] = rem_val
+            else:
+                ws[f'A{row_num}'] = ""
+                ws[f'B{row_num}'] = ""
+                ws[f'C{row_num}'] = ""
+                ws[f'D{row_num}'] = ""
+                ws[f'E{row_num}'] = ""
+                ws[f'F{row_num}'] = ""
+                ws[f'G{row_num}'] = ""
+                
+            ws[f'A{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
+            ws[f'B{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
+            ws[f'C{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
+            ws[f'D{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
+            ws[f'E{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
+            ws[f'F{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
+            ws[f'G{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
+            
+            for col_l in ["A", "B", "C", "D", "E", "F", "G"]:
+                ws[f'{col_l}{row_num}'].border = border_box
+                ws[f'{col_l}{row_num}'].font = font_normal
 
-    # --- Footer ---
-    footer_start = 14 + 20 + 1 
-    
-    ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
-    ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
-    ws[f'A{footer_start+1}'] = "Date (วันที่)          ........................................................"
-    ws[f'E{footer_start+1}'] = "Date (วันที่)          ........................................................"
-    
-    box_start = footer_start + 3 
-    ws.merge_cells(f'A{box_start}:B{box_start+1}')
-    ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
-    ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    
-    ws.merge_cells(f'C{box_start}:G{box_start+1}')
-    ws[f'C{box_start}'] = ""
-    
-    for row in range(box_start, box_start+2):
-        for col in ['A', 'B']:
-            ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, 
-                                              right=thin if col=='B' else None, 
-                                              top=thin if row==box_start else None, 
-                                              bottom=thin if row==box_start+1 else None)
-        for col in ['C', 'D', 'E', 'F', 'G']:
-            ws[f'{col}{row}'].border = Border(left=thin if col=='C' else None, 
-                                              right=thin if col=='G' else None, 
-                                              top=thin if row==box_start else None, 
-                                              bottom=thin if row==box_start+1 else None)
-    
-    doc_code_row = box_start + 2
-    ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
-    ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
+        # --- Footer ---
+        footer_start = offset + 35 
+        
+        ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
+        ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
+        ws[f'A{footer_start+1}'] = "Date (วันที่)          ........................................................"
+        ws[f'E{footer_start+1}'] = "Date (วันที่)          ........................................................"
+        
+        box_start = footer_start + 3 
+        ws.merge_cells(f'A{box_start}:B{box_start+1}')
+        ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
+        ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        
+        ws.merge_cells(f'C{box_start}:G{box_start+1}')
+        ws[f'C{box_start}'] = ""
+        
+        for row in range(box_start, box_start+2):
+            for col in ['A', 'B']:
+                ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, 
+                                                  right=thin if col=='B' else None, 
+                                                  top=thin if row==box_start else None, 
+                                                  bottom=thin if row==box_start+1 else None)
+            for col in ['C', 'D', 'E', 'F', 'G']:
+                ws[f'{col}{row}'].border = Border(left=thin if col=='C' else None, 
+                                                  right=thin if col=='G' else None, 
+                                                  top=thin if row==box_start else None, 
+                                                  bottom=thin if row==box_start+1 else None)
+        
+        doc_code_row = box_start + 2
+        ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
+        ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
+        
+        # ✂️ แทรกตัวแบ่งหน้า (Page Break) เมื่อจบแต่ละหน้า (ยกเว้นหน้าสุดท้าย)
+        if p < total_pages - 1:
+            page_break = Break(id=offset+40)
+            ws.row_breaks.append(page_break)
 
-    # --- Set Column Widths ---
+    # --- Set Column Widths (ตั้งค่าครั้งเดียวมีผลทุกหน้า) ---
     ws.column_dimensions['A'].width = 16 
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 10
@@ -738,13 +751,11 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     part = str(r.get("Part No.", ""))
                     c_code = part
                     
-                    # 1. 🔥 ดึง Casting_Group จาก Master Data ตรงๆ เลย (ตามรูปที่คุณรินแคปมาให้ดูเป๊ะๆ)
+                    # 1. ดึง Casting_Group จาก Master Data ตรงๆ
                     if master_items is not None:
                         m = master_items[(master_items["Code_CMA"].astype(str).str.strip() == part) | 
                                          (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))]
-                        
                         if not m.empty:
-                            # ถ้ามีคอลัมน์ Route_Vendor ให้กรองเอาเฉพาะแถวที่เป็นของซัพเจ้านี้ (เช่น TMY)
                             if "Route_Vendor" in m.columns:
                                 m_vendor = m[m["Route_Vendor"].astype(str).str.contains(target_vendor, na=False)]
                                 if not m_vendor.empty:
@@ -754,7 +765,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                             else:
                                 c_code = str(m.iloc[0]["Casting_Group"])
                     
-                    # 2. 🔥 ดักเคสพิเศษ TMY 615-1034 (Dropdown จะโชว์ตรงนี้)
+                    # 2. ดักเคสพิเศษ TMY 615-1034
                     part_base = part.lstrip('0')
                     if target_vendor == "TMY" and part_base.startswith("615-1034"):
                         st.warning(f"⚠️ พบรายการพิเศษ TMY: {part}")
@@ -764,12 +775,27 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                             key=f"tmy_choice_{i}"
                         )
                     
-                    # 3. เก็บลงตารางส่งให้ Excel
+                    # 3. 🔥 ลอจิกซ่อนคำซ้ำ (สำหรับหน้า Dashboard) และตัดเลข 0
+                    def get_base_ui(s):
+                        s_clean = str(s).strip().lstrip('0')
+                        pts = s_clean.split('-')
+                        if len(pts) >= 2:
+                            return f"{pts[0]}-{pts[1]}"
+                        return s_clean
+
+                    # เทียบรหัสฐาน ถ้าตรงกันให้เว้นว่าง
+                    if get_base_ui(part) == get_base_ui(c_code):
+                        final_remark = ""
+                    else:
+                        # ถ้าไม่ตรงกัน ให้ดึงค่ามาโชว์ และปอกเลข 0 ข้างหน้าออก
+                        final_remark = c_code.lstrip('0') 
+                    
+                    # 4. เก็บลงตารางส่งให้ Dashboard และ Excel
                     gatepass_items.append({
                         "Part No.": part,
                         "Assigned_Qty": str(int(qty_val)),
                         "Invoice No.": st.session_state.iv_number,
-                        "Remark": c_code 
+                        "Remark": final_remark 
                     })
         df_gp = pd.DataFrame(gatepass_items)
         with st.container(border=True):

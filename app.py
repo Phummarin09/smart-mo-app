@@ -899,43 +899,56 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         for _, r in st.session_state.final_split_df.iterrows():
             supp = str(r["Supplier"]).strip()
             if supp and str(r["Quantity (Allocated)"]).strip():
-                part = str(r["Part No."]).strip() # เช่น "0617-115-1"
+                part = str(r["Part No."]).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code ฉบับแก้ไขการจับคู่ ---
+                # --- 🔥 LOGIC การดึง Casting Code ที่ปลอดภัยจาก KeyError 100% ---
                 c_code = part 
                 
-                # 1. เช็คก่อนว่ามีรหัสพิเศษที่เลือกจากดรอปดาวน์ (เก็บใน Remark) ไหม?
+                # 1. เช็คดรอปดาวน์ (Remark)
                 remark_val = str(r.get("Remark", "")).strip() 
                 if remark_val != "" and remark_val.lower() != "nan":
-                    # ถ้ามีการเลือกจากดรอปดาวน์ ให้ใช้ตัวนี้เลย!
                     c_code = remark_val 
                 else:
-                    # 2. ถ้าไม่มี ค่อยไปหา Casting จาก Master Data
+                    # 2. ค้นหาใน Master Data แบบ "ยืดหยุ่น" ไม่สนชื่อเป๊ะๆ ป้องกัน Error หน้าแดง
                     if master_items is not None:
-                        # 🔥 ค้นหาโดยให้ Code_CMA ตรงกับ part และ Route_Vendor ตรงกับ supp 
-                        # (เช็คทั้งชื่อเป๊ะๆ หรือผ่าน VENDOR_MAP ก็ได้)
+                        m_cols = master_items.columns.tolist()
                         
-                        mapped_supp = VENDOR_MAP.get(supp, supp) 
+                        # พยายามหาชื่อคอลัมน์ที่ใกล้เคียงที่สุด
+                        cma_col = "Code_CMA" if "Code_CMA" in m_cols else ("Item_Code" if "Item_Code" in m_cols else None)
                         
-                        # ค้นหาใน master_items โดยตรงเลย
-                        m = master_items[
-                            (master_items["Code_CMA"] == part) & 
-                            (
-                                (master_items["Route_Vend"] == supp) | 
-                                (master_items["Route_Vend"] == mapped_supp)
-                            )
-                        ]
-                        
-                        # ถ้าเจอกรณี Code_CMA + Route_Vend ตรงกัน
-                        if not m.empty:
-                            c_code = m.iloc[0].get("Casting_Group", m.iloc[0].get("Casting_Code", part))
-                        else:
-                            # ถ้าหาแบบระบุซัพพลายเออร์ไม่เจอ ลองหาแค่ Code_CMA อย่างเดียวดู
-                            m_fallback = master_items[master_items["Code_CMA"] == part]
-                            if not m_fallback.empty:
-                                c_code = m_fallback.iloc[0].get("Casting_Group", m_fallback.iloc[0].get("Casting_Code", part))
+                        # หาคอลัมน์ Route (ไม่ว่าจะชื่อ Route_Vend หรือ Route_Vendor)
+                        route_col = None
+                        for col in m_cols:
+                            if "Route" in str(col) or "Vend" in str(col):
+                                route_col = col
+                                break
+                                
+                        # หาคอลัมน์ Casting (ไม่ว่าจะชื่อ Casting_Group หรือ Casting_Code)
+                        cast_col = None
+                        for col in m_cols:
+                            if "Casting" in str(col):
+                                cast_col = col
+                                break
+
+                        # ถ้าเจอคอลัมน์หลักๆ ครบ ให้เริ่มค้นหา
+                        if cma_col and cast_col:
+                            m = master_items[master_items[cma_col] == part]
+                            if not m.empty:
+                                if route_col:
+                                    try:
+                                        mapped_supp = VENDOR_MAP.get(supp, supp)
+                                    except NameError:
+                                        mapped_supp = supp
+                                        
+                                    m_vendor = m[(m[route_col] == supp) | (m[route_col] == mapped_supp)]
+                                    if not m_vendor.empty:
+                                        c_code = m_vendor.iloc[0][cast_col]
+                                    else:
+                                        c_code = m.iloc[0][cast_col]
+                                else:
+                                    c_code = m.iloc[0][cast_col]
                 
-                # 3. ตัด 0 ข้างหน้าทิ้งเสมอ!
+                # 3. ตัด 0 ข้างหน้าทิ้งเสมอ
                 c_code = str(c_code).strip()
                 if c_code.startswith("0"):
                     c_code = c_code[1:] 
@@ -957,7 +970,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 if qty > 0:
                     mc_rows.append({
                         "_Supplier": supp,
-                        "Item CD": c_code, # 🚀 ใช้รหัสที่ถูกต้องแล้ว!
+                        "Item CD": c_code, 
                         "Manufacturing loc. CD": "OS01",
                         "BOM pattern": 1,
                         "Lot No.": "*",

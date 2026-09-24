@@ -219,48 +219,64 @@ def parse_full_invoice(file):
     return df_res, iv_no, iv_date
 # 5. Export Exact Formatted CMV Invoice Excel (openpyxl)
 def create_annotated_invoice_excel(df_table, iv_no, iv_date):
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
+    import io
+    import pandas as pd
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "IV"
     
+    # 1. แก้ปัญหาตัวหนังสือเล็กและขอบเหลือเยอะ
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0 
+
     thin_border = Border(
         left=Side(style='thin', color='A6B0BA'),
         right=Side(style='thin', color='A6B0BA'),
         top=Side(style='thin', color='A6B0BA'),
         bottom=Side(style='thin', color='A6B0BA')
     )
-    
+
     font_bold = Font(name='Arial', size=10, bold=True)
     font_title = Font(name='Arial', size=13, bold=True, color='102A43')
     font_sub = Font(name='Arial', size=9, color='555555')
     font_cell = Font(name='Arial', size=9)
     font_annot = Font(name='Arial', size=9, bold=True, color='002060')
-    
+
     fill_orig_hdr = PatternFill(start_color='102A43', end_color='102A43', fill_type='solid')
     fill_annot_hdr = PatternFill(start_color='C55A11', end_color='C55A11', fill_type='solid')
     fill_annot_cell = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
     fill_tot = PatternFill(start_color='EAEAEA', end_color='EAEAEA', fill_type='solid')
-    
+
     ws['A1'] = "CITIZEN MACHINERY VIETNAM CO., LTD"
     ws['A1'].font = font_title
     ws['A2'] = "Land plot J2, J3, J4, Japan Hai Phong IZ, Hong An ward, Hai Phong, Vietnam"
     ws['A2'].font = font_sub
-    
+
     ws.merge_cells('A4:I4')
     ws['A4'] = f"INVOICE (WITH STORE ALLOCATION) — {iv_no}"
     ws['A4'].font = Font(name='Arial', size=12, bold=True, color='102A43')
     ws['A4'].alignment = Alignment(horizontal='center', vertical='center')
     ws['A4'].fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
-    
+
     ws['A6'] = f"Invoice No.: {iv_no}"
     ws['A6'].font = font_bold
     ws['A7'] = f"Invoice Date: {iv_date}"
     ws['A7'].font = font_bold
+    
     ws['E6'] = "Consignee: CITIZEN MACHINERY ASIA CO., LTD."
     ws['E6'].font = font_bold
-    ws['E7'] = "Purpose: ใบตรวจรับเข้าสโตร์ & บันทึกการแยกตัดงาน"
-    ws['E7'].font = font_bold
     
+    # 2. แก้ไขข้อความ Purpose ให้เหลือแค่ภาษาอังกฤษ
+    ws['E7'] = "Purpose: Store Receiving & Allocation Record"
+    ws['E7'].font = font_bold
+
     headers = ['No', 'Part No.', 'Description of goods', 'P.O No.', 'Quantity', 'Unit Price', 'Amount (JPY)', 'Supplier', 'Quantity (Allocated)']
     for col_idx, h_name in enumerate(headers, start=1):
         c = ws.cell(row=9, column=col_idx, value=h_name)
@@ -268,69 +284,72 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
         c.alignment = Alignment(horizontal='center', vertical='center')
         c.fill = fill_orig_hdr if col_idx <= 7 else fill_annot_hdr
         c.border = thin_border
-        
+
     current_row = 10
     tot_qty = 0
     tot_alloc = 0
     for _, r in df_table.iterrows():
-        supp_val = str(r['Supplier']).strip()
-        alloc_val = str(r['Quantity (Allocated)']).strip()
-        
-        ws.cell(row=current_row, column=1, value=r['No']).alignment = Alignment(horizontal='center')
-        ws.cell(row=current_row, column=2, value=r['Part No.']).alignment = Alignment(horizontal='center')
-        ws.cell(row=current_row, column=3, value=r['Description of goods']).alignment = Alignment(horizontal='left')
-        ws.cell(row=current_row, column=4, value=r['P.O No.']).alignment = Alignment(horizontal='center')
-        
-        c_qty = ws.cell(row=current_row, column=5, value=r['Quantity'])
+        supp_val = str(r.get('Supplier', '')).strip()
+        alloc_val = str(r.get('Quantity (Allocated)', '')).strip()
+
+        ws.cell(row=current_row, column=1, value=r.get('No', '')).alignment = Alignment(horizontal='center')
+        ws.cell(row=current_row, column=2, value=r.get('Part No.', '')).alignment = Alignment(horizontal='left')
+        ws.cell(row=current_row, column=3, value=r.get('Description of goods', '')).alignment = Alignment(horizontal='left')
+        ws.cell(row=current_row, column=4, value=r.get('P.O No.', '')).alignment = Alignment(horizontal='left')
+
+        c_qty = ws.cell(row=current_row, column=5, value=r.get('Quantity', ''))
         c_qty.alignment = Alignment(horizontal='right')
         c_qty.number_format = '#,##0'
-        
-        c_up = ws.cell(row=current_row, column=6, value=r['Unit Price'])
+
+        c_up = ws.cell(row=current_row, column=6, value=r.get('Unit Price', ''))
         c_up.alignment = Alignment(horizontal='right')
-        
-        c_amt = ws.cell(row=current_row, column=7, value=r['Amount (JPY)'])
+
+        c_amt = ws.cell(row=current_row, column=7, value=r.get('Amount (JPY)', ''))
         c_amt.alignment = Alignment(horizontal='right')
         c_amt.number_format = '#,##0'
-        
+
         c_supp = ws.cell(row=current_row, column=8, value=supp_val)
         c_supp.alignment = Alignment(horizontal='center')
         c_supp.font = font_annot
         c_supp.fill = fill_annot_cell
-        
+
         c_alloc = ws.cell(row=current_row, column=9, value=alloc_val)
         c_alloc.alignment = Alignment(horizontal='center')
         c_alloc.font = font_annot
         c_alloc.fill = fill_annot_cell
-        
+
         for col_idx in range(1, 10):
             ws.cell(row=current_row, column=col_idx).border = thin_border
             if col_idx < 8:
                 ws.cell(row=current_row, column=col_idx).font = font_cell
-                
-        if pd.notna(r['Quantity']):
-            tot_qty += int(r['Quantity'])
+
+        if pd.notna(r.get('Quantity')):
+            try:
+                tot_qty += int(r['Quantity'])
+            except:
+                pass
         if alloc_val.replace('.0', '').isdigit():
             tot_alloc += int(float(alloc_val))
-            
+
         current_row += 1
-        
+
     ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=4)
-    ws.cell(row=current_row, column=1, value="TOTAL").alignment = Alignment(horizontal='center')
+    ws.cell(row=current_row, column=1, value="TOTAL").alignment = Alignment(horizontal='center', vertical='center')
     ws.cell(row=current_row, column=5, value=tot_qty).alignment = Alignment(horizontal='right')
     ws.cell(row=current_row, column=5).number_format = '#,##0'
-    ws.cell(row=current_row, column=8, value="TOTAL ALLOCATED").alignment = Alignment(horizontal='center')
+    ws.cell(row=current_row, column=8, value="TOTAL ALLOCATED").alignment = Alignment(horizontal='right')
     ws.cell(row=current_row, column=9, value=tot_alloc if tot_alloc > 0 else "").alignment = Alignment(horizontal='center')
-    
+
     for col_idx in range(1, 10):
         cell_t = ws.cell(row=current_row, column=col_idx)
         cell_t.font = font_bold
         cell_t.fill = fill_tot
         cell_t.border = thin_border
-        
+
     col_widths = [8, 18, 28, 20, 12, 12, 16, 20, 20]
     for idx, width in enumerate(col_widths, start=1):
         ws.column_dimensions[get_column_letter(idx)].width = width
-        
+
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()

@@ -338,11 +338,14 @@ def create_annotated_invoice_excel(df_table, iv_no, iv_date):
 # 6. Export Outward Delivery Note / Gate Pass Excel
 def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import io
+    import os
     import math
     import re
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side
     from openpyxl.worksheet.pagebreak import Break
+    # นำเข้าโมดูลสำหรับจัดการรูปภาพ
+    from openpyxl.drawing.image import Image as OpenpyxlImage
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -360,23 +363,24 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     # บีบ Margin ให้แคบลง เพื่อให้ตารางขยายได้เต็มที่
     ws.page_margins.left = 0.25
     ws.page_margins.right = 0.25
-    ws.page_margins.top = 0.25      # 🔥 ลดขอบบน
-    ws.page_margins.bottom = 0.25   # 🔥 ลดขอบล่าง
+    ws.page_margins.top = 0.25
+    ws.page_margins.bottom = 0.25
     ws.page_margins.header = 0.2
     ws.page_margins.footer = 0.2
 
-    # --- Styles ---
+    # --- Styles ใหม่ (ใหญ่และหนาขึ้นตามรีเควส) ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
     border_bottom = Border(bottom=thin)
-    font_bold_xl = Font(name='Calibri', size=32, bold=True)
-    font_bold_lg = Font(name='Calibri', size=14, bold=True)
-    font_bold_md = Font(name='Calibri', size=12, bold=True)
-    font_normal = Font(name='Calibri', size=10)
-    font_address = Font(name='Calibri', size=8)
-    font_red = Font(name='Calibri', size=12, color='FF0000', bold=True)
+    
+    font_title = Font(name='Calibri', size=20, bold=True) # ใบนำของออก
+    font_company = Font(name='Calibri', size=16, bold=True) # ชื่อบริษัท
+    font_address = Font(name='Calibri', size=9, bold=True) # ที่อยู่
+    font_bold_lg = Font(name='Calibri', size=14, bold=True) # หัวข้อ Send to, Date
+    font_bold_md = Font(name='Calibri', size=12, bold=True) # Footer, Table Header
+    font_normal_md = Font(name='Calibri', size=12) # ข้อมูลในตาราง
+    font_red_no = Font(name='Calibri', size=16, color='FF0000', bold=True) # เลข No.
 
-    # 🔥 ฟังก์ชันช่วย: รันเลขที่ใบนำของออกให้หน้าถัดไป (เช่น 001 -> 002)
     def get_page_gp_no(base_no, page_index):
         if page_index == 0:
             return base_no
@@ -385,64 +389,78 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             num_str = match.group(1)
             new_num = str(int(num_str) + page_index).zfill(len(num_str))
             return str(base_no)[:match.start()] + new_num
-        return f"{base_no}-{page_index+1}" # สำรองเผื่อไม่มีตัวเลข
+        return f"{base_no}-{page_index+1}"
 
-    # 🧮 คำนวณจำนวนหน้า (20 รายการ / หน้า)
     records_count = len(df_records)
     total_pages = max(1, math.ceil(records_count / 20))
     
     for p in range(total_pages):
-        offset = p * 40  # 1 หน้ากินพื้นที่ 40 บรรทัด Excel
-        current_gp_no = get_page_gp_no(gp_no, p) # 🔥 อัปเดตเลขเอกสารประจำหน้า
+        offset = p * 45  # ขยาย offset เป็น 45 บรรทัดต่อหน้า เพื่อเพิ่ม Spacing
+        current_gp_no = get_page_gp_no(gp_no, p)
         
         # --- Header ---
-        ws.merge_cells(f'A{offset+1}:B{offset+3}')
-        ws[f'A{offset+1}'] = "CITIZEN"
-        ws[f'A{offset+1}'].font = font_bold_xl
-        ws[f'A{offset+1}'].alignment = Alignment(horizontal='left', vertical='top')
+        ws.merge_cells(f'A{offset+1}:B{offset+4}')
+        # 🔥 แทรกรูปภาพโลโก้
+        img_path = 'image.png'
+        if os.path.exists(img_path):
+            img = OpenpyxlImage(img_path)
+            img.width = 160  # ปรับขนาดกว้าง
+            img.height = 45  # ปรับขนาดสูง
+            ws.add_image(img, f'A{offset+1}')
+        else:
+            # ถ้าลืมวางรูปภาพ จะแสดงตัวหนังสือแทนกันระบบพัง
+            ws[f'A{offset+1}'] = "CITIZEN"
+            ws[f'A{offset+1}'].font = font_company
+            ws[f'A{offset+1}'].alignment = Alignment(horizontal='left', vertical='top')
         
         ws.merge_cells(f'C{offset+1}:E{offset+3}')
         ws[f'C{offset+1}'] = "CITIZEN MACHINERY ASIA CO., LTD."
-        ws[f'C{offset+1}'].font = font_bold_md
+        ws[f'C{offset+1}'].font = font_company # ใหญ่และหนา
         ws[f'C{offset+1}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         
         ws.merge_cells(f'F{offset+1}:G{offset+4}')
         addr = "199 Moo 1 Phaholyotin Road, Sanaptube,\nWang Noi, Ayutthaya 13170\nTel: 66 (0)35 902-604-2 Fax: 66 (0)35 902-644\nTEX ID 0105544056802"
         ws[f'F{offset+1}'] = addr
-        ws[f'F{offset+1}'].font = font_address
+        ws[f'F{offset+1}'].font = font_address # หนา
         ws[f'F{offset+1}'].alignment = Alignment(horizontal='right', vertical='top', wrap_text=True)
         
         # --- Title ---
         ws.merge_cells(f'A{offset+6}:G{offset+6}')
+        ws.row_dimensions[offset+6].height = 30 # เพิ่มระยะบรรทัด
         ws[f'A{offset+6}'] = "ใบนำของออกนอกโรงงาน"
-        ws[f'A{offset+6}'].font = font_bold_lg
+        ws[f'A{offset+6}'].font = font_title # ใหญ่และหนามาก
         ws[f'A{offset+6}'].alignment = Alignment(horizontal='center', vertical='center')
         
-        # --- Info ---
+        # --- Info (เพิ่ม Spacing ให้โปร่งขึ้น) ---
+        ws.row_dimensions[offset+8].height = 25
         ws[f'A{offset+8}'] = "Date (วันที่)"
-        ws[f'A{offset+8}'].font = font_normal
+        ws[f'A{offset+8}'].font = font_bold_md
         ws[f'B{offset+8}'] = ""
         ws[f'B{offset+8}'].border = border_bottom
         
         ws[f'F{offset+8}'] = "No."
-        ws[f'G{offset+8}'] = current_gp_no # 🔥 ใส่เลขที่เอกสารที่รันแล้ว
-        ws[f'F{offset+8}'].font = font_bold_md; ws[f'F{offset+8}'].alignment = Alignment(horizontal='right')
-        ws[f'G{offset+8}'].font = font_red; ws[f'G{offset+8}'].alignment = Alignment(horizontal='left')
+        ws[f'G{offset+8}'] = current_gp_no 
+        ws[f'F{offset+8}'].font = font_bold_lg; ws[f'F{offset+8}'].alignment = Alignment(horizontal='right')
+        ws[f'G{offset+8}'].font = font_red_no; ws[f'G{offset+8}'].alignment = Alignment(horizontal='left')
         
-        ws[f'A{offset+9}'] = "Send to(ส่ง)"
-        ws[f'A{offset+9}'].font = font_normal
-        ws[f'B{offset+9}'] = f"{vendor_name}"
-        ws[f'B{offset+9}'].font = font_bold_md
-        ws[f'B{offset+9}'].border = border_bottom
-        ws[f'B{offset+9}'].alignment = Alignment(horizontal='center', vertical='bottom')
+        ws.row_dimensions[offset+10].height = 25
+        ws[f'A{offset+10}'] = "Send to(ส่ง)"
+        ws[f'A{offset+10}'].font = font_bold_md
+        ws[f'B{offset+10}'] = f"{vendor_name}"
+        ws[f'B{offset+10}'].font = font_bold_lg
+        ws[f'B{offset+10}'].border = border_bottom
+        ws[f'B{offset+10}'].alignment = Alignment(horizontal='center', vertical='bottom')
         
-        ws[f'A{offset+10}'] = "The purpose (วัตถุประสงค์)"
-        ws[f'A{offset+10}'].font = font_normal
+        ws.row_dimensions[offset+12].height = 20
+        ws[f'A{offset+12}'] = "The purpose (วัตถุประสงค์)"
+        ws[f'A{offset+12}'].font = font_bold_md
         
-        ws.merge_cells(f'A{offset+11}:G{offset+11}')
-        ws[f'A{offset+11}'] = "     O ส่งซ่อม (Send to repair)          O จ้างกัด Casting          O อื่น ๆ (Other)________________________"
-        ws[f'A{offset+11}'].font = font_normal
-        ws[f'A{offset+11}'].alignment = Alignment(vertical='center')
+        # 🔥 บังคับติ๊ก จ้างกัด Casting อัตโนมัติ
+        ws.merge_cells(f'A{offset+13}:G{offset+13}')
+        ws.row_dimensions[offset+13].height = 25
+        ws[f'A{offset+13}'] = "     O ส่งซ่อม (Send to repair)          ☑ จ้างกัด Casting          O อื่น ๆ (Other)________________________"
+        ws[f'A{offset+13}'].font = font_bold_md
+        ws[f'A{offset+13}'].alignment = Alignment(vertical='center')
         
         # --- Table Headers ---
         headers = [
@@ -455,43 +473,32 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ("G", "Remark\nคำอธิบาย")
         ]
         for col, text in headers:
-            c = ws[f'{col}{offset+13}']
+            c = ws[f'{col}{offset+15}']
             c.value = text
             c.font = font_bold_md
             c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             c.border = border_box
-            ws.row_dimensions[offset+13].height = 35
+            ws.row_dimensions[offset+15].height = 35
             
-        # --- Table Data (20 Rows ต่อ 1 หน้า) ---
-        current_r = offset + 14
+        # --- Table Data (20 Rows) ---
+        current_r = offset + 16
         for slot in range(20):
             row_num = current_r + slot
-            # 🔥 ยืดความสูงบรรทัดจาก 23 เป็น 27 เพื่อให้ตารางยาวเต็มหน้า A4 ปิดช่องว่างด้านล่าง
-            ws.row_dimensions[row_num].height = 27 
+            ws.row_dimensions[row_num].height = 26 # ความสูงตาราง
             
             data_idx = (p * 20) + slot
-            
             if data_idx < records_count:
                 r = df_records.iloc[data_idx]
-                qty_val = r.get('Assigned_Qty', 0)
-                part_val = str(r.get('Part No.', '')).strip()
-                rem_val = str(r.get('Remark', '')).strip() 
-                
-                ws[f'A{row_num}'] = slot + 1 # 🔥 รีเซ็ตลำดับเป็น 1-20 เสมอ ไม่ว่าหน้าไหน
-                ws[f'B{row_num}'] = part_val
-                ws[f'C{row_num}'] = qty_val
+                ws[f'A{row_num}'] = slot + 1 
+                ws[f'B{row_num}'] = str(r.get('Part No.', '')).strip()
+                ws[f'C{row_num}'] = r.get('Assigned_Qty', 0)
                 ws[f'D{row_num}'] = ""
                 ws[f'E{row_num}'] = ""
                 ws[f'F{row_num}'] = r.get('Invoice No.', '')
-                ws[f'G{row_num}'] = rem_val
+                ws[f'G{row_num}'] = str(r.get('Remark', '')).strip() 
             else:
-                ws[f'A{row_num}'] = ""
-                ws[f'B{row_num}'] = ""
-                ws[f'C{row_num}'] = ""
-                ws[f'D{row_num}'] = ""
-                ws[f'E{row_num}'] = ""
-                ws[f'F{row_num}'] = ""
-                ws[f'G{row_num}'] = ""
+                for col in ["A", "B", "C", "D", "E", "F", "G"]:
+                    ws[f'{col}{row_num}'] = ""
                 
             ws[f'A{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
             ws[f'B{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
@@ -503,19 +510,27 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             
             for col_l in ["A", "B", "C", "D", "E", "F", "G"]:
                 ws[f'{col_l}{row_num}'].border = border_box
-                ws[f'{col_l}{row_num}'].font = font_normal
+                ws[f'{col_l}{row_num}'].font = font_normal_md
 
-        # --- Footer ---
-        footer_start = offset + 35 
+        # --- Footer (ปรับระยะห่างและฟอนต์ตัวหนา) ---
+        footer_start = offset + 37 
         
+        ws.row_dimensions[footer_start].height = 30 # เพิ่มพื้นที่ให้เซ็นชื่อ
         ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
         ws[f'E{footer_start}'] = "Receive by (ผู้รับ) ........................................................"
-        ws[f'A{footer_start+1}'] = "Date (วันที่)          ........................................................"
-        ws[f'E{footer_start+1}'] = "Date (วันที่)          ........................................................"
+        ws[f'A{footer_start}'].font = font_bold_md
+        ws[f'E{footer_start}'].font = font_bold_md
         
-        box_start = footer_start + 3 
+        ws.row_dimensions[footer_start+2].height = 25
+        ws[f'A{footer_start+2}'] = "Date (วันที่)          ........................................................"
+        ws[f'E{footer_start+2}'] = "Date (วันที่)          ........................................................"
+        ws[f'A{footer_start+2}'].font = font_bold_md
+        ws[f'E{footer_start+2}'].font = font_bold_md
+        
+        box_start = footer_start + 4 
         ws.merge_cells(f'A{box_start}:B{box_start+1}')
         ws[f'A{box_start}'] = "Expect return date\n(วันส่งคืน)"
+        ws[f'A{box_start}'].font = font_bold_md
         ws[f'A{box_start}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         
         ws.merge_cells(f'C{box_start}:G{box_start+1}')
@@ -523,33 +538,27 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         
         for row in range(box_start, box_start+2):
             for col in ['A', 'B']:
-                ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, 
-                                                  right=thin if col=='B' else None, 
-                                                  top=thin if row==box_start else None, 
-                                                  bottom=thin if row==box_start+1 else None)
+                ws[f'{col}{row}'].border = Border(left=thin if col=='A' else None, right=thin if col=='B' else None, top=thin if row==box_start else None, bottom=thin if row==box_start+1 else None)
             for col in ['C', 'D', 'E', 'F', 'G']:
-                ws[f'{col}{row}'].border = Border(left=thin if col=='C' else None, 
-                                                  right=thin if col=='G' else None, 
-                                                  top=thin if row==box_start else None, 
-                                                  bottom=thin if row==box_start+1 else None)
+                ws[f'{col}{row}'].border = Border(left=thin if col=='C' else None, right=thin if col=='G' else None, top=thin if row==box_start else None, bottom=thin if row==box_start+1 else None)
         
         doc_code_row = box_start + 2
         ws[f'A{doc_code_row}'] = "CMA-FR-STS-01-02 (01/09/25)"
-        ws[f'A{doc_code_row}'].font = Font(name='Calibri', size=8)
+        ws[f'A{doc_code_row}'].font = font_address
         
         # ✂️ ตัดหน้ากระดาษ (Page Break)
         if p < total_pages - 1:
-            page_break = Break(id=offset+40)
+            page_break = Break(id=offset+45)
             ws.row_breaks.append(page_break)
 
     # --- Set Column Widths ---
-    ws.column_dimensions['A'].width = 16 
-    ws.column_dimensions['B'].width = 24
+    ws.column_dimensions['A'].width = 15 
+    ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 20
-    ws.column_dimensions['G'].width = 22
+    ws.column_dimensions['D'].width = 14
+    ws.column_dimensions['E'].width = 22
+    ws.column_dimensions['F'].width = 19
+    ws.column_dimensions['G'].width = 23
 
     output = io.BytesIO()
     wb.save(output)

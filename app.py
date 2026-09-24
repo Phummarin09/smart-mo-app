@@ -895,6 +895,13 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         with col_d2:
             mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
 
+        def get_base_ui(s):
+            s_clean = str(s).strip().lstrip('0')
+            pts = s_clean.split('-')
+            if len(pts) >= 2:
+                return f"{pts[0]}-{pts[1]}"
+            return s_clean
+
         mc_rows = []
         for i, r in st.session_state.final_split_df.iterrows():
             supp = str(r.get("Supplier", "")).strip()
@@ -912,7 +919,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 
                 c_code = part
                 
-                # 1. เช็คว่ามี "รหัสพิเศษ" (เช่น 123-6R) หรือ "โค้ดทดแทน" (1061F) จากช่อง Remark ไหม
+                # 1. เช็ค "รหัสพิเศษ" (เช่น 1061F) จากช่อง Remark
                 remark_val = ""
                 for col in r.index:
                     if "remark" in str(col).lower():
@@ -921,38 +928,52 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                             remark_val = val
                             break
                             
-                # ดักเคสพิเศษ 1034 ถ้าค้างในดรอปดาวน์หน้าเว็บ
+                # ดักเคสพิเศษ 1034 ถ้าค้างในดรอปดาวน์
                 if not remark_val and supp == "TMY" and part.lstrip('0').startswith("615-1034"):
                     dropdown_key = f"tmy_choice_{i}"
                     if dropdown_key in st.session_state:
                         remark_val = st.session_state[dropdown_key]
 
-                # --- 🔥 หัวใจสำคัญ: ผสานโค้ดใหม่ (รหัสพิเศษ) + โค้ดเดิมที่ถูกอยู่แล้ว (รหัสปกติ) ---
+                # --- 🧠 LOGIC ขั้นสุดยอด: ผสาน 3 แหล่งข้อมูลเข้าด้วยกัน ---
                 if remark_val:
-                    # ถ้าเป็นโค้ดที่ถูกเปลี่ยน (เช่น 115 เปลี่ยนเป็น 123) หรือ 1061F ให้ดึงจาก Remark ทันที
                     c_code = remark_val
                 else:
-                    # ถ้าเป็นโค้ดปกติ ➡️ คืนชีพโค้ด "ดั้งเดิม" ของคุณริน! ที่ดึงจาก Supplier_Allocation
-                    # (เพราะตารางนี้มี Casting_Code ที่หาง R/F อยู่ครบถ้วน!)
                     if master_items is not None and master_alloc is not None:
+                        part_clean = part.lstrip('0')
+                        base_part = get_base_ui(part_clean)
+                        
                         m = master_items[
                             (master_items["Code_CMA"].astype(str).str.strip() == part) |
-                            (master_items["Code_CMA"].astype(str).str.lstrip('0') == part.lstrip('0'))
+                            (master_items["Code_CMA"].astype(str).str.lstrip('0') == part_clean) |
+                            (master_items["Item_Code"].astype(str).str.strip() == base_part)
                         ]
                         
                         if not m.empty:
-                            it_code = m.iloc[0]["Item_Code"]
-                            alloc = master_alloc[master_alloc["Item_Code"] == it_code]
+                            it_code = str(m.iloc[0]["Item_Code"]).strip()
+                            alloc = master_alloc[master_alloc["Item_Code"].astype(str).str.strip() == it_code]
                             
                             if not alloc.empty:
-                                # กรองซัพพลายเออร์ด้วย VENDOR_MAP เหมือนโค้ดแรกสุดที่คุณรินทำไว้!
-                                vendor_alloc = alloc[alloc["Supplier_Code"].map(VENDOR_MAP).fillna(alloc["Supplier_Code"]) == supp]
+                                # 👉 เคสที่ 1: "โค้ดปกติที่ต้องรักษาหาง R/F" (ดึงจาก Supplier_Allocation)
+                                mapped_supp = VENDOR_MAP.get(supp, supp) if 'VENDOR_MAP' in globals() else supp
+                                vendor_alloc = alloc[(alloc["Supplier_Code"].astype(str).str.strip() == supp) | 
+                                                     (alloc["Supplier_Code"].astype(str).str.strip() == mapped_supp)]
                                 if not vendor_alloc.empty:
                                     c_code = str(vendor_alloc.iloc[0]["Casting_Code"])
                                 else:
                                     c_code = str(alloc.iloc[0]["Casting_Code"])
+                            else:
+                                # 👉 เคสที่ 2: "โค้ดที่เปลี่ยนรูป เช่น 115 -> 123" (ดึงจาก Item_Master เพราะไม่มีใน Allocation)
+                                route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
+                                if route_col:
+                                    m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
+                                    if not m_vendor.empty:
+                                        c_code = str(m_vendor.iloc[0]["Casting_Group"])
+                                    else:
+                                        c_code = str(m.iloc[0]["Casting_Group"])
+                                else:
+                                    c_code = str(m.iloc[0]["Casting_Group"])
                 
-                # 3. ท่าไม้ตายสุดท้าย: ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
+                # ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
                 c_code = c_code.lstrip('0')
                 # -------------------------------------------------------------
 

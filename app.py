@@ -899,9 +899,9 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         for _, r in st.session_state.final_split_df.iterrows():
             supp = str(r["Supplier"]).strip()
             if supp and str(r["Quantity (Allocated)"]).strip():
-                part = str(r["Part No."]).strip()
+                part = str(r["Part No."]).strip() # เช่น "0617-115-1"
                 
-                # --- 🔥 LOGIC การดึง Casting Code ที่ถูกต้อง ---
+                # --- 🔥 LOGIC การดึง Casting Code ฉบับแก้ไขการจับคู่ ---
                 c_code = part 
                 
                 # 1. เช็คก่อนว่ามีรหัสพิเศษที่เลือกจากดรอปดาวน์ (เก็บใน Remark) ไหม?
@@ -912,25 +912,33 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 else:
                     # 2. ถ้าไม่มี ค่อยไปหา Casting จาก Master Data
                     if master_items is not None:
-                        m = master_items[(master_items["Code_CMA"] == part) | (master_items["Item_Code"] == part)]
+                        # 🔥 ค้นหาโดยให้ Code_CMA ตรงกับ part และ Route_Vendor ตรงกับ supp 
+                        # (เช็คทั้งชื่อเป๊ะๆ หรือผ่าน VENDOR_MAP ก็ได้)
+                        
+                        mapped_supp = VENDOR_MAP.get(supp, supp) 
+                        
+                        # ค้นหาใน master_items โดยตรงเลย
+                        m = master_items[
+                            (master_items["Code_CMA"] == part) & 
+                            (
+                                (master_items["Route_Vend"] == supp) | 
+                                (master_items["Route_Vend"] == mapped_supp)
+                            )
+                        ]
+                        
+                        # ถ้าเจอกรณี Code_CMA + Route_Vend ตรงกัน
                         if not m.empty:
-                            it_code = m.iloc[0]["Item_Code"]
-                            alloc = master_alloc[master_alloc["Item_Code"] == it_code]
-                            
-                            vendor_alloc = alloc[alloc["Supplier_Code"].map(VENDOR_MAP).fillna(alloc["Supplier_Code"]) == supp]
-                            
-                            # 🔥 แก้ไข Error ตรงนี้: ใช้ฟังก์ชัน .get() เพื่อดักจับทั้ง 2 ชื่อคอลัมน์
-                            if not vendor_alloc.empty:
-                                row_data = vendor_alloc.iloc[0]
-                                c_code = row_data.get("Casting_Group", row_data.get("Casting_Code", part))
-                            elif not alloc.empty:
-                                row_data = alloc.iloc[0]
-                                c_code = row_data.get("Casting_Group", row_data.get("Casting_Code", part))
+                            c_code = m.iloc[0].get("Casting_Group", m.iloc[0].get("Casting_Code", part))
+                        else:
+                            # ถ้าหาแบบระบุซัพพลายเออร์ไม่เจอ ลองหาแค่ Code_CMA อย่างเดียวดู
+                            m_fallback = master_items[master_items["Code_CMA"] == part]
+                            if not m_fallback.empty:
+                                c_code = m_fallback.iloc[0].get("Casting_Group", m_fallback.iloc[0].get("Casting_Code", part))
                 
-                # 3. ตัด 0 ข้างหน้าทิ้ง
+                # 3. ตัด 0 ข้างหน้าทิ้งเสมอ!
                 c_code = str(c_code).strip()
                 if c_code.startswith("0"):
-                    c_code = c_code[1:] # ตัด 0 ตัวแรกทิ้ง
+                    c_code = c_code[1:] 
                 # -------------------------------------------------------------
 
                 c_code_upper = str(c_code).upper()
@@ -949,7 +957,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 if qty > 0:
                     mc_rows.append({
                         "_Supplier": supp,
-                        "Item CD": c_code, 
+                        "Item CD": c_code, # 🚀 ใช้รหัสที่ถูกต้องแล้ว!
                         "Manufacturing loc. CD": "OS01",
                         "BOM pattern": 1,
                         "Lot No.": "*",

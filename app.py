@@ -891,11 +891,9 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         # สร้างช่องให้แก้ไขวันที่ได้ก่อน Export
         col_d1, col_d2 = st.columns(2)
         with col_d1:
-            # ใช้วันที่โหลดไฟล์ (iv_date) หรือวันที่ปัจจุบันก็ได้เป็น default
             default_start_date = pd.Timestamp.now().strftime("%d/%m/%Y 0:00")
             mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
         with col_d2:
-            # เปลี่ยนให้เป็นช่องว่างไว้ หรือจะซ่อนไปเลยก็ได้ แต่ใส่ไว้ให้เห็นว่าว่างเปล่า
             mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
 
         mc_rows = []
@@ -905,29 +903,34 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             if supp and str(r["Quantity (Allocated)"]).strip():
                 part = str(r["Part No."]).strip()
                 
-                # --- 🔥 LOGIC การดึง Casting Code และตัดศูนย์ (เหมือน Gate Pass) ---
+                # --- 🔥 LOGIC การดึง Casting Code และตัดศูนย์ ---
                 c_code = part
-                # 1. เช็คว่ามี Master Data ไหม ถ้ามีให้ดึง Casting_Group ออกมา
-                if master_items is not None:
-                    m = master_items[(master_items["Code_CMA"] == part) | (master_items["Item_Code"] == part)]
-                    if not m.empty:
-                        it_code = m.iloc[0]["Item_Code"]
-                        alloc = master_alloc[master_alloc["Item_Code"] == it_code]
-                        
-                        # กรองเอาเฉพาะซัพพลายเออร์เจ้านั้นๆ
-                        vendor_alloc = alloc[alloc["Supplier_Code"].map(VENDOR_MAP).fillna(alloc["Supplier_Code"]) == supp]
-                        if not vendor_alloc.empty:
-                            c_code = vendor_alloc.iloc[0]["Casting_Code"]
-                        elif not alloc.empty:
-                            c_code = alloc.iloc[0]["Casting_Code"]
                 
-                # 2. ทำการ "ตัด 0 ข้างหน้าทิ้ง" (ถ้ามี)
+                # 1. เช็คว่า "มีรหัสทดแทน (Remark)" ที่ถูกเลือกมาไหม
+                remark_val = str(r.get("Remark", "")).strip() 
+                if remark_val != "" and remark_val.lower() != "nan":
+                    c_code = remark_val # ถ้ามีใช้รหัสใน Remark เลย
+                else:
+                    # 2. ถ้าไม่มี ค่อยไปหาใน Master Data
+                    if master_items is not None:
+                        m = master_items[(master_items["Code_CMA"] == part) | (master_items["Item_Code"] == part)]
+                        if not m.empty:
+                            it_code = m.iloc[0]["Item_Code"]
+                            alloc = master_alloc[master_alloc["Item_Code"] == it_code]
+                            
+                            vendor_alloc = alloc[alloc["Supplier_Code"].map(VENDOR_MAP).fillna(alloc["Supplier_Code"]) == supp]
+                            if not vendor_alloc.empty:
+                                c_code = vendor_alloc.iloc[0]["Casting_Code"]
+                            elif not alloc.empty:
+                                c_code = alloc.iloc[0]["Casting_Code"]
+                
+                # 3. ทำการ "ตัด 0 ข้างหน้าทิ้ง" (ถ้ามี)
                 c_code = str(c_code).strip()
                 if c_code.startswith("0"):
-                    c_code = c_code[1:] # ตัด 0 ตัวแรกสุดทิ้ง
+                    c_code = c_code[1:]
                 # -------------------------------------------------------------
 
-                # เงื่อนไขเดิม: ถ้าโค้ดมี F เป็น MP03, ถ้ามี R เป็น MP02
+                # กำหนดสถานที่เก็บตามเงื่อนไข F หรือ R
                 c_code_upper = str(c_code).upper()
                 if 'F' in c_code_upper:
                     storage_loc = "MP03"
@@ -942,17 +945,17 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                     qty = 0
 
                 if qty > 0:
-                    # จัดเรียง 27 คอลัมน์ให้ตรงเป๊ะกับไฟล์ Template PUS และแอบเก็บชื่อ Supplier ไว้เพื่อใช้แยกไฟล์
+                    # จัดเรียงคอลัมน์เตรียมลงไฟล์ MO
                     mc_rows.append({
-                        "_Supplier": supp,  # คอลัมน์พิเศษสร้างมาเพื่อกรองข้อมูลเท่านั้น
-                        "Item CD": c_code,
+                        "_Supplier": supp,
+                        "Item CD": c_code, # ใช้โค้ดที่ถูกต้องแล้ว!
                         "Manufacturing loc. CD": "OS01",
                         "BOM pattern": 1,
                         "Lot No.": "*",
                         "SERIAL No.": "",
                         "MFG No.": "",
-                        "Sched. manufacturing finish date": "", # 🔥 บังคับเว้นว่างตามโจทย์
-                        "Actual manufacturing start date": mfg_start_date, # 🔥 ใช้วันที่ที่ดึงมา
+                        "Sched. manufacturing finish date": "", # เว้นว่าง
+                        "Actual manufacturing start date": mfg_start_date, # ใช้วันที่ที่ตั้ง
                         "Actual manufacturing finish date": "",
                         "Posting date": "",
                         "Sched. manufacturing qty.": qty,
@@ -977,15 +980,11 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         df_all_mc = pd.DataFrame(mc_rows)
 
         if not df_all_mc.empty:
-            # หาว่ามีซัพพลายเออร์กี่เจ้าในรอบบิลนี้
             mo_suppliers = df_all_mc["_Supplier"].unique()
-
             st.markdown("### 📦 เลือกดาวน์โหลดไฟล์ MO ตามซัพพลายเออร์")
 
-            # แบ่งคอลัมน์เพื่อสร้างปุ่มดาวน์โหลดเรียงกัน
             dl_cols = st.columns(len(mo_suppliers))
             for i, supp_name in enumerate(mo_suppliers):
-                # กรองเอาเฉพาะข้อมูลของเจ้านั้นๆ และ ลบคอลัมน์ _Supplier ออกเพื่อไม่ให้ไปโผล่ในไฟล์ CSV
                 df_supp = df_all_mc[df_all_mc["_Supplier"] == supp_name].drop(columns=["_Supplier"])
 
                 with dl_cols[i]:
@@ -1000,10 +999,8 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
 
             st.markdown("---")
             st.markdown("### 👀 พรีวิวข้อมูลก่อนดาวน์โหลด")
-            # ให้ผู้ใช้กดเลือกได้เลยว่าจะดูพรีวิวตารางของใคร
             preview_vendor = st.selectbox("เลือกดูตัวอย่างข้อมูลของซัพพลายเออร์:", mo_suppliers)
             df_preview = df_all_mc[df_all_mc["_Supplier"] == preview_vendor].drop(columns=["_Supplier"])
-
             st.dataframe(df_preview, hide_index=True, use_container_width=True)
         else:
             st.warning("ยังไม่มีข้อมูลสำหรับออกไฟล์ MO")

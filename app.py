@@ -343,6 +343,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side
     from openpyxl.worksheet.pagebreak import Break
+    from openpyxl.cell.rich_text import TextBlock, CellRichText
+    from openpyxl.cell.text import InlineFont
     import pandas as pd
     
     wb = openpyxl.Workbook()
@@ -378,6 +380,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     font_bold_md = Font(name='Calibri', size=12, bold=True)
     font_normal_md = Font(name='Calibri', size=12)
     font_red_no = Font(name='Calibri', size=16, color='FF0000', bold=True)
+
+    # ฟอนต์ย่อยสำหรับใส่ใน Rich Text
+    font_wd = InlineFont(rFont='Wingdings 2', sz=12)
+    font_cal = InlineFont(rFont='Calibri', sz=12, b=True)
 
     def get_page_gp_no(base_no, page_index):
         if page_index == 0:
@@ -447,10 +453,17 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws.merge_cells(f'A{offset+13}:G{offset+13}')
         ws.row_dimensions[offset+13].height = 25
         
-        # 🔥 กลับมาใช้ข้อความปกติ แต่ใช้ Unicode ที่ปลอดภัยจาก Emoji (☐ และ ☑)
-        # สัญลักษณ์ \u2610 คือสี่เหลี่ยมว่าง / \u2611\uFE0E คือสี่เหลี่ยมติ๊กถูกแบบเส้นโปร่ง
-        ws[f'A{offset+13}'] = "     \u2610 ส่งซ่อม (Send to repair)          \u2611\uFE0E จ้างกัด Casting          \u2610 อื่น ๆ (Other)________________________"
-        ws[f'A{offset+13}'].font = font_bold_md
+        # 🔥 ใช้ CellRichText กับตัวอักษร Wingdings 2 ตรงๆ
+        rt = CellRichText(
+            TextBlock(font_cal, "     "),
+            TextBlock(font_wd, "£"), 
+            TextBlock(font_cal, " ส่งซ่อม (Send to repair)          "),
+            TextBlock(font_wd, "R"), 
+            TextBlock(font_cal, " จ้างกัด Casting          "),
+            TextBlock(font_wd, "£"), 
+            TextBlock(font_cal, " อื่น ๆ (Other)________________________")
+        )
+        ws[f'A{offset+13}'] = rt
         ws[f'A{offset+13}'].alignment = Alignment(vertical='center')
         
         # --- Table Headers ---

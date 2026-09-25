@@ -90,6 +90,22 @@ def save_to_history_json(df, inv_no, inv_date):
     # เซฟกลับลงไฟล์
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=4)
+    # ==========================================
+# --- เริ่มโค้ดส่วนเพิ่ม: ระบบ Control Material (JSON) ---
+# ==========================================
+CONTROL_MAT_FILE = "control_material.json"
+if not os.path.exists(CONTROL_MAT_FILE):
+    with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:
+        json.dump([], f)
+
+def load_control_mat():
+    with open(CONTROL_MAT_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_control_mat(data):
+    with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+# ==========================================
 #3. Backend Engine: Load Master Data
 @st.cache_data
 def load_backend_master():
@@ -670,9 +686,9 @@ if uploaded_file is not None:
                 if not match.empty:
                     # ดึง Purchase_Price ตัวแรกที่เจอ
                     price = match.iloc[0].get("Purchase_Price", "-")
-                    result_rows.append({"Item CD": item, "Price (JPY)": price, "Status": "✅"})
+                    result_rows.append({"Item CD": item, "Price": price, "Status": "✅"})
                 else:
-                    result_rows.append({"Item CD": item, "Price (JPY)": "-", "Status": "❌ ไม่พบ"})
+                    result_rows.append({"Item CD": item, "Price": "-", "Status": "❌ ไม่พบ"})
             
             # แสดงผลลัพธ์เป็นตารางให้กวาดตามองง่ายๆ
             res_df = pd.DataFrame(result_rows)
@@ -708,12 +724,13 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.markdown(f'<div class="metric-card" style="border-left-color:#319795;"><div class="metric-title">จำนวนชิ้นงานรวม</div><div class="metric-value">{total_pcs} <span style="font-size:0.85rem; color:#627d98;">Pcs</span></div></div>', unsafe_allow_html=True)
     with k4:
         st.markdown(f'<div class="metric-card" style="border-left-color:#805ad5;"><div class="metric-title">Invoice No.</div><div class="metric-value" style="font-size:1.1rem; padding-top:4px;">{st.session_state.iv_number}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3, tab4 = st.tabs([
-    "📋 1. ใบแจ้งหนี้พร้อมจัดสรร", 
-    "🚚 2. ใบนำของออก (Gate Pass)", 
-    "📄 3. ส่งออก (MC Frame MO)",
-    "🔍 4. ค้นหาประวัติ (Tracking History)"
-])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📋 1. ใบแจ้งหนี้พร้อมจัดสรร", 
+        "🚚 2. ใบนำของออก (Gate Pass)", 
+        "📄 3. ส่งออก (MC Frame MO)",
+        "🔍 4. ค้นหาประวัติ (Tracking History)",
+        "📊 5. Control Material"
+    ])
     # --- TAB 1 ---
     with tab1:
         st.subheader("ขั้นตอนที่ 1: ตรวจสอบและระบุซัพพลายเออร์")
@@ -940,6 +957,47 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 )
             else:
                 st.warning(f"ยังไม่มีรายการที่ระบุส่งไปยัง {target_vendor}")
+# ==========================================
+                # --- เริ่มโค้ดส่วนเพิ่ม: ปุ่มบันทึกลง Control Material ---
+                # ==========================================
+                gp_excel = create_gate_pass_excel(df_gp, target_vendor, gate_pass_no, delivery_date)
+                
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(
+                        label=f"📄 ดาวน์โหลดใบนำของออก ({target_vendor})",
+                        data=gp_excel,
+                        file_name=f"GatePass_{target_vendor}_{gate_pass_no}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                with col_dl2:
+                    if st.button(f"💾 บันทึกรายการนี้ลง Control Material"):
+                        cm_logs = load_control_mat()
+                        for _, row in df_gp.iterrows():
+                            part = row["Part No."]
+                            # ดึงข้อมูลที่เหลือจาก Invoice ตั้งต้น
+                            orig_row = st.session_state.full_invoice_df[st.session_state.full_invoice_df["Part No."] == part]
+                            desc = orig_row.iloc[0]["Description of goods"] if not orig_row.empty else ""
+                            u_price = orig_row.iloc[0]["Unit Price"] if not orig_row.empty else 0
+                            orig_qty = orig_row.iloc[0]["Quantity"] if not orig_row.empty else 0
+                            
+                            # เช็คโค้ดที่ถูกเปลี่ยน
+                            c_code = row["Remark"] if row["Remark"] != "" else part.lstrip('0')
+                            
+                            cm_logs.append({
+                                "Gate_Pass_No": gate_pass_no,
+                                "Casting_Code": c_code,
+                                "Description": desc,
+                                "GP_Qty": row["Assigned_Qty"],
+                                "Unit_Price": u_price,
+                                "Invoice_No": row["Invoice No."],
+                                "Supplier": target_vendor,
+                                "Original_Inv_Qty": orig_qty,
+                                "PO_Opened": False
+                            })
+                        save_control_mat(cm_logs)
+                        st.success("✅ บันทึกเข้า Tab 5: Control Material สำเร็จแล้ว!")
+                # ==========================================
 # --- TAB 3 ---
     with tab3:
         st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
@@ -1139,4 +1197,69 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             st.error("⚠️ ไม่พบไฟล์ฐานข้อมูล (history_log.json)")
 else:
     st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน")
-    
+# --- TAB 5 ---
+    with tab5:
+        st.subheader("📊 ระบบติดตามวัตถุดิบควบคุม (Control Material Tracker)")
+        st.caption("ระบบคำนวณยอดหักลบอัตโนมัติ (Pending Mat) และติ๊กเพื่อสถานะเปลี่ยนสีถมดำเมื่อเปิด PO แล้ว")
+
+        cm_data = load_control_mat()
+        if cm_data:
+            df_cm = pd.DataFrame(cm_data)
+
+            # --- ระบบ Auto-Deduction หักลบยอดรอส่ง ---
+            df_cm['Original_Inv_Qty'] = pd.to_numeric(df_cm['Original_Inv_Qty'], errors='coerce').fillna(0)
+            df_cm['GP_Qty'] = pd.to_numeric(df_cm['GP_Qty'], errors='coerce').fillna(0)
+            df_cm['Pending Mat (รอแมทเข้า)'] = df_cm['Original_Inv_Qty'] - df_cm['GP_Qty']
+
+            display_cols = [
+                "Gate_Pass_No", "Casting_Code", "Description", "GP_Qty", "Unit_Price",
+                "Invoice_No", "Supplier", "Pending Mat (รอแมทเข้า)", "PO_Opened"
+            ]
+            df_display = df_cm[display_cols].copy()
+
+            # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
+            def color_rows(row):
+                if row["PO_Opened"] == True:
+                    return ['background-color: #4A5568; color: white'] * len(row) # ถมสีดำ/เทาเข้ม
+                else:
+                    supp = str(row["Supplier"]).strip().upper()
+                    if supp == "TMY": return ['background-color: #FEFCBF; color: black'] * len(row) # สีเหลือง
+                    elif supp == "PLM": return ['background-color: #C6F6D5; color: black'] * len(row) # สีเขียว
+                    elif supp == "ALPS": return ['background-color: #FED7E2; color: black'] * len(row) # สีชมพู
+                    elif supp == "YGT": return ['background-color: #BEE3F8; color: black'] * len(row) # สีฟ้า
+                    return [''] * len(row)
+
+            st.markdown("##### 📝 ตารางรายการใบนำของออกทั้งหมด")
+            
+            # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
+            edited_df = st.data_editor(
+                df_display.style.apply(color_rows, axis=1),
+                column_config={
+                    "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️", default=False),
+                    "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
+                    "Casting_Code": st.column_config.TextColumn("Code", disabled=True),
+                    "Description": st.column_config.TextColumn("Description", disabled=True),
+                    "GP_Qty": st.column_config.NumberColumn("Qty (PCS)", disabled=True),
+                    "Unit_Price": st.column_config.NumberColumn("Unit Price", disabled=True),
+                    "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
+                    "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
+                    "Pending Mat (รอแมทเข้า)": st.column_config.NumberColumn("Pending Mat ⏳", disabled=True)
+                },
+                hide_index=True,
+                use_container_width=True,
+                key="cm_editor"
+            )
+
+            if st.button("🔄 บันทึกการอัปเดตสถานะ PO"):
+                for i, r in edited_df.iterrows():
+                    cm_data[i]["PO_Opened"] = r["PO_Opened"]
+                save_control_mat(cm_data)
+                st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
+                st.rerun() # รีเฟรชหน้าจอเพื่อให้สีเปลี่ยนทันที
+                
+            if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด (เคลียร์หน้าจอ)"):
+                save_control_mat([])
+                st.rerun()
+
+        else:
+            st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")    

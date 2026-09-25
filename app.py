@@ -1279,26 +1279,26 @@ with tab5:
 
     else:
         st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")          
-    # --- โค้ดปุ่มดาวน์โหลด Excel สำหรับ Tab 5 (Control Material) ---
-        st.markdown("---")
-        st.markdown("#### 💾 สำรองข้อมูลสต็อก Control Material")
+# --- โค้ดปุ่มดาวน์โหลด Excel สำหรับ Tab 5 (Control Material) ---
+    st.markdown("---")
+    st.markdown("#### 💾 สำรองข้อมูลสต็อก Control Material")
+    
+    # ดึงข้อมูล Control Material ล่าสุดมาแปลงเป็นตาราง
+    cm_data_export = load_control_mat()
+    
+    if cm_data_export:
+        df_cm_export = pd.DataFrame(cm_data_export)
+        csv_cm = df_cm_export.to_csv(index=False).encode('utf-8-sig')
         
-        # ดึงข้อมูล Control Material ล่าสุดมาแปลงเป็นตาราง
-        cm_data_export = load_control_mat()
-        
-        if cm_data_export:
-            df_cm_export = pd.DataFrame(cm_data_export)
-            csv_cm = df_cm_export.to_csv(index=False).encode('utf-8-sig')
-            
-            col_btn3, col_btn4 = st.columns([1, 2])
-            with col_btn3:
-                st.download_button(
-                    label="📥 ดาวน์โหลดสต็อก Control Mat (Excel)",
-                    data=csv_cm,
-                    file_name=f"Backup_ControlMat_{pd.Timestamp.now().strftime('%Y_%m_%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-        else:
-            st.info("📭 ยังไม่มีข้อมูล Control Material ให้ดาวน์โหลดครับ")
-        # -----------------------------------------------------------
+        col_btn3, col_btn4 = st.columns([1, 2])
+        with col_btn3:
+            st.download_button(
+                label="📥 ดาวน์โหลดสต็อก Control Mat (Excel)",
+                data=csv_cm,
+                file_name=f"Backup_ControlMat_{pd.Timestamp.now().strftime('%Y_%m_%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    else:
+        st.info("📭 ยังไม่มีข้อมูล Control Material ให้ดาวน์โหลดครับ")
+    # -----------------------------------------------------------

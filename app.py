@@ -979,11 +979,11 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                                 "Gate_Pass_No": gate_pass_no,
                                 "Casting_Code": c_code,
                                 "Description": desc,
-                                "GP_Qty": row["Assigned_Qty"],
-                                "Unit_Price": u_price,
-                                "Invoice_No": row["Invoice No."],
-                                "Supplier": target_vendor,
-                                "Original_Inv_Qty": orig_qty,
+                                "GP_Qty": int(row["Assigned_Qty"]) if pd.notna(row["Assigned_Qty"]) else 0,
+                                "Unit_Price": float(u_price) if pd.notna(u_price) else 0.0,
+                                "Invoice_No": str(row["Invoice No."]),
+                                "Supplier": str(target_vendor),
+                                "Original_Inv_Qty": int(orig_qty) if pd.notna(orig_qty) else 0,
                                 "PO_Opened": False
                             })
                         save_control_mat(cm_logs)

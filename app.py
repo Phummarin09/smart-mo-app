@@ -1279,26 +1279,52 @@ with tab5:
 
     else:
         st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")          
-# --- โค้ดปุ่มดาวน์โหลด Excel สำหรับ Tab 5 (Control Material) ---
-    st.markdown("---")
-    st.markdown("#### 💾 สำรองข้อมูลสต็อก Control Material")
-    
-    # ดึงข้อมูล Control Material ล่าสุดมาแปลงเป็นตาราง
-    cm_data_export = load_control_mat()
-    
-    if cm_data_export:
-        df_cm_export = pd.DataFrame(cm_data_export)
-        csv_cm = df_cm_export.to_csv(index=False).encode('utf-8-sig')
+# --- โค้ดปุ่มดาวน์โหลด Excel สำหรับ Tab 5 (Control Material แบบมีสี) ---
+        st.markdown("---")
+        st.markdown("#### 💾 สำรองข้อมูลสต็อก Control Material")
         
-        col_btn3, col_btn4 = st.columns([1, 2])
-        with col_btn3:
-            st.download_button(
-                label="📥 ดาวน์โหลดสต็อก Control Mat (Excel)",
-                data=csv_cm,
-                file_name=f"Backup_ControlMat_{pd.Timestamp.now().strftime('%Y_%m_%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-    else:
-        st.info("📭 ยังไม่มีข้อมูล Control Material ให้ดาวน์โหลดครับ")
-    # -----------------------------------------------------------
+        cm_data_export = load_control_mat()
+        
+        if cm_data_export:
+            df_cm_export = pd.DataFrame(cm_data_export)
+            
+            # 1. สร้างฟังก์ชันสำหรับใส่สีเงื่อนไข
+            def style_excel(row):
+                bg_color = 'white'
+                font_color = 'black'
+                
+                # เงื่อนไขที่ 1: ถ้าติ๊กแล้ว (PO_Opened == TRUE) ให้พื้นหลังดำ ตัวหนังสือขาว
+                if str(row.get('PO_Opened', '')).upper() == 'TRUE':
+                    bg_color = '#404040' # ใช้เทาดำ จะได้อ่านตัวหนังสือชัดเจนขึ้น
+                    font_color = 'white'
+                else:
+                    # เงื่อนไขที่ 2: ถ้ายังไม่ติ๊ก ให้ใส่สีตามซัพพลายเออร์
+                    supp = str(row.get('Supplier', '')).strip().upper()
+                    if supp == 'TMY': bg_color = '#DDEBF7'   # สีฟ้าอ่อน
+                    elif supp == 'YGT': bg_color = '#E2EFDA' # สีเขียวอ่อน
+                    elif supp == 'ALPS': bg_color = '#FFF2CC'# สีเหลืองอ่อน
+                    elif supp == 'PLM': bg_color = '#FCE4D6' # สีส้มอ่อน
+                        
+                return [f'background-color: {bg_color}; color: {font_color}'] * len(row)
+
+            # 2. นำฟังก์ชันสีไปฉาบลงบนตาราง DataFrame
+            styled_df = df_cm_export.style.apply(style_excel, axis=1)
+            
+            # 3. แปลงเป็นไฟล์ .xlsx (ต้องใช้โมดูล io เข้ามาช่วยเก็บไฟล์ไว้ในหน่วยความจำชั่วคราว)
+            import io
+            excel_buffer = io.BytesIO()
+            styled_df.to_excel(excel_buffer, engine='openpyxl', index=False)
+            excel_data = excel_buffer.getvalue()
+            
+            col_btn3, col_btn4 = st.columns([1, 2])
+            with col_btn3:
+                st.download_button(
+                    label="📥 ดาวน์โหลดสต็อก (Excel แบบมีสี)",
+                    data=excel_data,
+                    file_name=f"Backup_ControlMat_{pd.Timestamp.now().strftime('%Y_%m_%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+        else:
+            st.info("📭 ยังไม่มีข้อมูล Control Material ให้ดาวน์โหลดครับ")
+        # -----------------------------------------------------------

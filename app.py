@@ -99,8 +99,13 @@ if not os.path.exists(CONTROL_MAT_FILE):
         json.dump([], f)
 
 def load_control_mat():
-    with open(CONTROL_MAT_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(CONTROL_MAT_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f)
+        return []
 
 def save_control_mat(data):
     with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:

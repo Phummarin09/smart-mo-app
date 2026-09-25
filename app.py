@@ -643,63 +643,63 @@ if uploaded_file is not None:
         st.session_state.iv_number = iv_num
         st.session_state.iv_date = iv_dt
 # ==========================================
-    # --- เริ่มโค้ดส่วนเพิ่ม: ระบบค้นหาราคาแบบกลุ่ม ---
-    # ==========================================
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔍 ผู้ช่วยค้นหาราคา (Bulk Price Lookup)")
-    
-    # 1. ให้เลือกซัพพลายเออร์
-    lookup_vendor = st.sidebar.selectbox("เลือกซัพพลายเออร์เพื่อดึงราคา:", ["TMY", "PLM", "ALPS", "YGT"], key="lookup_vendor")
-    
-    # 2. ช่องวางข้อความ (รับข้อมูลได้ทีละหลายบรรทัด)
-    lookup_text = st.sidebar.text_area("วางรหัส Item CD (บรรทัดละ 1 รหัส):", height=150, help="ก๊อปปี้คอลัมน์รหัสจากหน้าจอ ERP มาแปะเรียงกันตรงนี้ได้เลย")
-    
-    if st.sidebar.button("💡 ดึงราคา"):
-        if not lookup_text.strip():
-            st.sidebar.warning("กรุณาวางรหัสก่อนกดค้นหาค่ะ")
-        elif master_alloc is None:
-            st.sidebar.error("ไม่พบฐานข้อมูล Supplier_Allocation")
-        else:
-            # ประกาศ VENDOR_MAP ไว้ในฟังก์ชันเลยเพื่อกันปัญหา Streamlit หาตัวแปรไม่เจอ
-            LOCAL_VENDOR_MAP = {
-                "PLTHE01": "TMY",
-                "PLPAI02": "PLM",
-                "PLALP01": "ALPS",
-                "PLYAG01": "YGT"
-            }
+# --- เริ่มโค้ดส่วนเพิ่ม: ระบบค้นหาราคาแบบกลุ่ม ---
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔍 ผู้ช่วยค้นหาราคา (Bulk Price Lookup)")
+
+# 1. ให้เลือกซัพพลายเออร์
+lookup_vendor = st.sidebar.selectbox("เลือกซัพพลายเออร์เพื่อดึงราคา:", ["TMY", "PLM", "ALPS", "YGT"], key="lookup_vendor")
+
+# 2. ช่องวางข้อความ (รับข้อมูลได้ทีละหลายบรรทัด)
+lookup_text = st.sidebar.text_area("วางรหัส Item CD (บรรทัดละ 1 รหัส):", height=150, help="ก๊อปปี้คอลัมน์รหัสจากหน้าจอ ERP มาแปะเรียงกันตรงนี้ได้เลย")
+
+if st.sidebar.button("💡 ดึงราคา"):
+    if not lookup_text.strip():
+        st.sidebar.warning("กรุณาวางรหัสก่อนกดค้นหาค่ะ")
+    elif master_alloc is None:
+        st.sidebar.error("ไม่พบฐานข้อมูล Supplier_Allocation")
+    else:
+        # ประกาศ VENDOR_MAP ไว้ในฟังก์ชันเลยเพื่อกันปัญหา Streamlit หาตัวแปรไม่เจอ
+        LOCAL_VENDOR_MAP = {
+            "PLTHE01": "TMY",
+            "PLPAI02": "PLM",
+            "PLALP01": "ALPS",
+            "PLYAG01": "YGT"
+        }
+        
+        # แยกข้อความที่แปะมาเป็นรายบรรทัด
+        search_items = [x.strip() for x in lookup_text.split('\n') if x.strip()]
+        
+        # 🔥 กรอง Master Data แบบรัดกุม 100% (กันช่องว่างซ่อน, กันตัวพิมพ์เล็ก/ใหญ่)
+        df_vendor_alloc = master_alloc[
+            (master_alloc["Supplier_Code"].astype(str).str.strip().str.upper() == lookup_vendor.upper()) |
+            (master_alloc["Supplier_Code"].astype(str).str.strip().map(LOCAL_VENDOR_MAP).fillna(master_alloc["Supplier_Code"].astype(str).str.strip()).str.upper() == lookup_vendor.upper())
+        ]
+        
+        result_rows = []
+        for item in search_items:
+            # ปอกเลข 0 ข้างหน้าออก และทำเป็นตัวใหญ่ให้หมดเพื่อเทียบค่า
+            item_clean = str(item).strip().upper().lstrip('0')
             
-            # แยกข้อความที่แปะมาเป็นรายบรรทัด
-            search_items = [x.strip() for x in lookup_text.split('\n') if x.strip()]
-            
-            # 🔥 กรอง Master Data แบบรัดกุม 100% (กันช่องว่างซ่อน, กันตัวพิมพ์เล็ก/ใหญ่)
-            df_vendor_alloc = master_alloc[
-                (master_alloc["Supplier_Code"].astype(str).str.strip().str.upper() == lookup_vendor.upper()) |
-                (master_alloc["Supplier_Code"].astype(str).str.strip().map(LOCAL_VENDOR_MAP).fillna(master_alloc["Supplier_Code"].astype(str).str.strip()).str.upper() == lookup_vendor.upper())
+            # ค้นหาเทียบใน Casting_Code ก่อน (กันปัญหาตัวพิมพ์เล็กใหญ่ และช่องว่าง)
+            match = df_vendor_alloc[
+                (df_vendor_alloc["Casting_Code"].astype(str).str.strip().str.upper().str.lstrip('0') == item_clean) |
+                (df_vendor_alloc["Item_Code"].astype(str).str.strip().str.upper().str.lstrip('0') == item_clean)
             ]
             
-            result_rows = []
-            for item in search_items:
-                # ปอกเลข 0 ข้างหน้าออก และทำเป็นตัวใหญ่ให้หมดเพื่อเทียบค่า
-                item_clean = str(item).strip().upper().lstrip('0')
-                
-                # ค้นหาเทียบใน Casting_Code ก่อน (กันปัญหาตัวพิมพ์เล็กใหญ่ และช่องว่าง)
-                match = df_vendor_alloc[
-                    (df_vendor_alloc["Casting_Code"].astype(str).str.strip().str.upper().str.lstrip('0') == item_clean) |
-                    (df_vendor_alloc["Item_Code"].astype(str).str.strip().str.upper().str.lstrip('0') == item_clean)
-                ]
-                
-                if not match.empty:
-                    # ดึง Purchase_Price ตัวแรกที่เจอ
-                    price = match.iloc[0].get("Purchase_Price", "-")
-                    result_rows.append({"Item CD": item, "Price": price, "Status": "✅"})
-                else:
-                    result_rows.append({"Item CD": item, "Price": "-", "Status": "❌ ไม่พบ"})
-            
-            # แสดงผลลัพธ์เป็นตารางให้กวาดตามองง่ายๆ
-            res_df = pd.DataFrame(result_rows)
-            st.sidebar.success(f"พบราคา {len(res_df[res_df['Status'] == '✅'])} จากทั้งหมด {len(res_df)} รายการ")
-            st.sidebar.dataframe(res_df, hide_index=True, use_container_width=True)
-    # ==========================================
+            if not match.empty:
+                # ดึง Purchase_Price ตัวแรกที่เจอ
+                price = match.iloc[0].get("Purchase_Price", "-")
+                result_rows.append({"Item CD": item, "Price": price, "Status": "✅"})
+            else:
+                result_rows.append({"Item CD": item, "Price": "-", "Status": "❌ ไม่พบ"})
+        
+        # แสดงผลลัพธ์เป็นตารางให้กวาดตามองง่ายๆ
+        res_df = pd.DataFrame(result_rows)
+        st.sidebar.success(f"พบราคา {len(res_df[res_df['Status'] == '✅'])} จากทั้งหมด {len(res_df)} รายการ")
+        st.sidebar.dataframe(res_df, hide_index=True, use_container_width=True)
+# ==========================================
 # 8. Top Header Banner
 st.markdown("""
 <div class="top-header">
@@ -729,13 +729,17 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.markdown(f'<div class="metric-card" style="border-left-color:#319795;"><div class="metric-title">จำนวนชิ้นงานรวม</div><div class="metric-value">{total_pcs} <span style="font-size:0.85rem; color:#627d98;">Pcs</span></div></div>', unsafe_allow_html=True)
     with k4:
         st.markdown(f'<div class="metric-card" style="border-left-color:#805ad5;"><div class="metric-title">Invoice No.</div><div class="metric-value" style="font-size:1.1rem; padding-top:4px;">{st.session_state.iv_number}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📋 1. ใบแจ้งหนี้พร้อมจัดสรร", 
-        "🚚 2. ใบนำของออก (Gate Pass)", 
-        "📄 3. ส่งออก (MC Frame MO)",
-        "🔍 4. ค้นหาประวัติ (Tracking History)",
-        "📊 5. Control Material"
-    ])
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📋 1. ใบแจ้งหนี้พร้อมจัดสรร", 
+    "🚚 2. ใบนำของออก (Gate Pass)", 
+    "📄 3. ส่งออก (MC Frame MO)",
+    "🔍 4. ค้นหาประวัติ (Tracking History)",
+    "📊 5. Control Material"
+])
+# --- เช็คว่ามีข้อมูล Invoice หรือยัง ---
+if "full_invoice_df" not in st.session_state or st.session_state.full_invoice_df.empty:
+    st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน Tab 1, 2, 3")
+else: 
     # --- TAB 1 ---
     with tab1:
         st.subheader("ขั้นตอนที่ 1: ตรวจสอบและระบุซัพพลายเออร์")
@@ -994,8 +998,8 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                         save_control_mat(cm_logs)
                         st.success("✅ บันทึกเข้า Tab 5: Control Material สำเร็จแล้ว!")
                 # ==========================================
-# --- TAB 3 ---
-    with tab3:
+    # --- TAB 3 ---
+with tab3:
         st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
         st.caption("(รูปแบบข้อมูลอิงตามไฟล์แม่แบบ PUS (กรอกเฉพาะคอลัมน์ที่จำเป็น))")
 
@@ -1004,7 +1008,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
             default_start_date = pd.Timestamp.now().strftime("%d/%m/%Y 0:00")
             mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
         with col_d2:
-            mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="", help="เว้นว่างไว้ตามเงื่อนไขใหม่")
+            mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="")
 
         def get_base_ui(s):
             s_clean = str(s).strip().lstrip('0')
@@ -1013,249 +1017,247 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 return f"{pts[0]}-{pts[1]}"
             return s_clean
 
-        mc_rows = []
-        for i, r in st.session_state.final_split_df.iterrows():
-            supp = str(r.get("Supplier", "")).strip()
-            
-            qty_col = next((col for col in r.index if "Quantity" in str(col) and "Allocated" in str(col)), "Quantity (Allocated)")
-            qty_val_str = str(r.get(qty_col, "0")).strip()
-            try:
-                qty_val = float(qty_val_str)
-            except ValueError:
-                qty_val = 0
+            mc_rows = []
+            for i, r in st.session_state.final_split_df.iterrows():
+                supp = str(r.get("Supplier", "")).strip()
 
-            if supp and qty_val > 0:
-                part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
-                part = str(r.get(part_col, "")).strip()
-                
-                c_code = part
-                
-                # 1. เช็ค "รหัสพิเศษ" (เช่น 1061F) จากช่อง Remark
-                remark_val = ""
-                for col in r.index:
-                    if "remark" in str(col).lower():
-                        val = str(r[col]).strip()
-                        if val != "" and val.lower() != "nan":
-                            remark_val = val
-                            break
-                            
-                # ดักเคสพิเศษ 1034 ถ้าค้างในดรอปดาวน์
-                if not remark_val and supp == "TMY" and part.lstrip('0').startswith("615-1034"):
-                    dropdown_key = f"tmy_choice_{i}"
-                    if dropdown_key in st.session_state:
-                        remark_val = st.session_state[dropdown_key]
+                qty_col = next((col for col in r.index if "Quantity" in str(col) and "Allocated" in str(col)), "Quantity (Allocated)")
+                qty_val_str = str(r.get(qty_col, "0")).strip()
+                try:
+                    qty_val = float(qty_val_str)
+                except ValueError:
+                    qty_val = 0
 
-                # --- 🧠 LOGIC ขั้นสุดยอด: ผสาน 3 แหล่งข้อมูลเข้าด้วยกัน ---
-                if remark_val:
-                    c_code = remark_val
-                else:
-                    if master_items is not None and master_alloc is not None:
-                        part_clean = part.lstrip('0')
-                        base_part = get_base_ui(part_clean)
-                        
-                        m = master_items[
-                            (master_items["Code_CMA"].astype(str).str.strip() == part) |
-                            (master_items["Code_CMA"].astype(str).str.lstrip('0') == part_clean) |
-                            (master_items["Item_Code"].astype(str).str.strip() == base_part)
-                        ]
-                        
-                        if not m.empty:
-                            it_code = str(m.iloc[0]["Item_Code"]).strip()
-                            alloc = master_alloc[master_alloc["Item_Code"].astype(str).str.strip() == it_code]
+                if supp and qty_val > 0:
+                    part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
+                    part = str(r.get(part_col, "")).strip()
+                    
+                    c_code = part
+                    
+                    # 1. เช็ค "รหัสพิเศษ" (เช่น 1061F) จากช่อง Remark
+                    remark_val = ""
+                    for col in r.index:
+                        if "remark" in str(col).lower():
+                            val = str(r[col]).strip()
+                            if val != "" and val.lower() != "nan":
+                                remark_val = val
+                                break
+                                
+                    # ดักเคสพิเศษ 1034 ถ้าค้างในดรอปดาวน์
+                    if not remark_val and supp == "TMY" and part.lstrip('0').startswith("615-1034"):
+                        dropdown_key = f"tmy_choice_{i}"
+                        if dropdown_key in st.session_state:
+                            remark_val = st.session_state[dropdown_key]
+
+                    # --- 🧠 LOGIC ขั้นสุดยอด: ผสาน 3 แหล่งข้อมูลเข้าด้วยกัน ---
+                    if remark_val:
+                        c_code = remark_val
+                    else:
+                        if master_items is not None and master_alloc is not None:
+                            part_clean = part.lstrip('0')
+                            base_part = get_base_ui(part_clean)
                             
-                            if not alloc.empty:
-                                # 👉 เคสที่ 1: "โค้ดปกติที่ต้องรักษาหาง R/F" (ดึงจาก Supplier_Allocation)
-                                mapped_supp = VENDOR_MAP.get(supp, supp) if 'VENDOR_MAP' in globals() else supp
-                                vendor_alloc = alloc[(alloc["Supplier_Code"].astype(str).str.strip() == supp) | 
-                                                     (alloc["Supplier_Code"].astype(str).str.strip() == mapped_supp)]
-                                if not vendor_alloc.empty:
-                                    c_code = str(vendor_alloc.iloc[0]["Casting_Code"])
+                            m = master_items[
+                                (master_items["Code_CMA"].astype(str).str.strip() == part) |
+                                (master_items["Code_CMA"].astype(str).str.lstrip('0') == part_clean) |
+                                (master_items["Item_Code"].astype(str).str.strip() == base_part)
+                            ]
+                            
+                            if not m.empty:
+                                it_code = str(m.iloc[0]["Item_Code"]).strip()
+                                alloc = master_alloc[master_alloc["Item_Code"].astype(str).str.strip() == it_code]
+                                
+                                if not alloc.empty:
+                                    # 👉 เคสที่ 1: "โค้ดปกติที่ต้องรักษาหาง R/F" (ดึงจาก Supplier_Allocation)
+                                    mapped_supp = VENDOR_MAP.get(supp, supp) if 'VENDOR_MAP' in globals() else supp
+                                    vendor_alloc = alloc[(alloc["Supplier_Code"].astype(str).str.strip() == supp) | 
+                                                            (alloc["Supplier_Code"].astype(str).str.strip() == mapped_supp)]
+                                    if not vendor_alloc.empty:
+                                        c_code = str(vendor_alloc.iloc[0]["Casting_Code"])
+                                    else:
+                                        c_code = str(alloc.iloc[0]["Casting_Code"])
                                 else:
-                                    c_code = str(alloc.iloc[0]["Casting_Code"])
-                            else:
-                                # 👉 เคสที่ 2: "โค้ดที่เปลี่ยนรูป เช่น 115 -> 123" (ดึงจาก Item_Master เพราะไม่มีใน Allocation)
-                                route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
-                                if route_col:
-                                    m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
-                                    if not m_vendor.empty:
-                                        c_code = str(m_vendor.iloc[0]["Casting_Group"])
+                                    # 👉 เคสที่ 2: "โค้ดที่เปลี่ยนรูป เช่น 115 -> 123" (ดึงจาก Item_Master เพราะไม่มีใน Allocation)
+                                    route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
+                                    if route_col:
+                                        m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
+                                        if not m_vendor.empty:
+                                            c_code = str(m_vendor.iloc[0]["Casting_Group"])
+                                        else:
+                                            c_code = str(m.iloc[0]["Casting_Group"])
                                     else:
                                         c_code = str(m.iloc[0]["Casting_Group"])
-                                else:
-                                    c_code = str(m.iloc[0]["Casting_Group"])
-                
-                # ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
-                c_code = c_code.lstrip('0')
-                # -------------------------------------------------------------
-
-                c_code_upper = str(c_code).upper()
-                if 'F' in c_code_upper:
-                    storage_loc = "MP03"
-                elif 'R' in c_code_upper:
-                    storage_loc = "MP02"
-                else:
-                    storage_loc = "MP02"
-
-                mc_rows.append({
-                    "_Supplier": supp,
-                    "Item CD": c_code, 
-                    "Manufacturing loc. CD": "OS01",
-                    "BOM pattern": 1,
-                    "Lot No.": "*",
-                    "SERIAL No.": "",
-                    "MFG No.": "",
-                    "Sched. manufacturing finish date": "",
-                    "Actual manufacturing start date": mfg_start_date,
-                    "Actual manufacturing finish date": "",
-                    "Posting date": "",
-                    "Sched. manufacturing qty.": int(qty_val),
-                    "Actual manufacturing qty.": int(qty_val),
-                    "Completed": "",
-                    "Storage loc. CD": storage_loc,
-                    "Operation dept.": "PUS",
-                    "Responsible PIC": "",
-                    "Manufacturing note": "",
-                    "Line CD": "",
-                    "Defective reason CD": "",
-                    "Defective qty.": "",
-                    "Defective item yard": "",
-                    "Defective item rack No.": "",
-                    "Mold branch No.": "",
-                    "Number of cavities": "",
-                    "Shot count": "",
-                    "Shot wt.": "",
-                    "Spec. CD": ""
-                })
-
-        df_all_mc = pd.DataFrame(mc_rows)
-
-        if not df_all_mc.empty:
-            mo_suppliers = df_all_mc["_Supplier"].unique()
-            st.markdown("### 📦 เลือกดาวน์โหลดไฟล์ MO ตามซัพพลายเออร์")
-
-            dl_cols = st.columns(len(mo_suppliers))
-            for i, supp_name in enumerate(mo_suppliers):
-                df_supp = df_all_mc[df_all_mc["_Supplier"] == supp_name].drop(columns=["_Supplier"])
-
-                with dl_cols[i]:
-                    st.info(f"**{supp_name}** (รวม {len(df_supp)} รายการ)")
-                    st.download_button(
-                        label=f"🚀 ดาวน์โหลด MO ของ {supp_name}",
-                        data=df_supp.to_csv(index=False).encode('utf-8-sig'),
-                        file_name=f"MO_Upload_{supp_name}_{st.session_state.iv_number.replace('/', '_')}.csv",
-                        mime="text/csv",
-                        key=f"dl_mo_{supp_name}"
-                    )
-
-            st.markdown("---")
-            st.markdown("### 👀 พรีวิวข้อมูลก่อนดาวน์โหลด")
-            preview_vendor = st.selectbox("เลือกดูตัวอย่างข้อมูลของซัพพลายเออร์:", mo_suppliers)
-            df_preview = df_all_mc[df_all_mc["_Supplier"] == preview_vendor].drop(columns=["_Supplier"])
-            st.dataframe(df_preview, hide_index=True, use_container_width=True)
-        else:
-            st.warning("ยังไม่มีข้อมูลสำหรับออกไฟล์ MO")
-# --- TAB 4 ---
-    with tab4:
-        st.subheader("🔍 ค้นหาประวัติการทำงานย้อนหลัง")
-        st.caption("ข้อมูลทั้งหมดถูกบันทึกไว้ในรูปแบบไฟล์ JSON")
-        
-        if os.path.exists(HISTORY_FILE):
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                hist_data = json.load(f)
-                
-            if hist_data:
-                df_hist = pd.DataFrame(hist_data)
-                
-                # สร้างช่องค้นหา
-                col_s1, col_s2, col_s3 = st.columns(3)
-                with col_s1:
-                    search_part = st.text_input("🔍 ค้นหาด้วย Part No.")
-                with col_s2:
-                    search_inv = st.text_input("🧾 ค้นหาด้วย เลข Invoice")
-                with col_s3:
-                    search_supp = st.selectbox("🏢 กรองตามซัพพลายเออร์", ["ทั้งหมด"] + list(df_hist["Supplier"].unique()))
-                
-                # ระบบกรองข้อมูล
-                df_show = df_hist.copy()
-                if search_part:
-                    df_show = df_show[df_show["Part_No"].str.contains(search_part, case=False, na=False)]
-                if search_inv:
-                    df_show = df_show[df_show["Invoice_No"].str.contains(search_inv, case=False, na=False)]
-                if search_supp != "ทั้งหมด":
-                    df_show = df_show[df_show["Supplier"] == search_supp]
                     
-                # แสดงผลตาราง
-                st.dataframe(df_show, hide_index=True, use_container_width=True)
-                st.info(f"📊 พบข้อมูลทั้งหมด {len(df_show)} รายการ")
-            else:
-                st.warning("📭 ยังไม่มีประวัติการจัดสรรข้อมูล")
-        else:
-            st.error("⚠️ ไม่พบไฟล์ฐานข้อมูล (history_log.json)")
-# --- TAB 5 ---
-    with tab5:
-        st.subheader("📊 ระบบติดตามวัตถุดิบควบคุม (Control Material Tracker)")
-        st.caption("ระบบคำนวณยอดหักลบอัตโนมัติ (Pending Mat) และติ๊กเพื่อสถานะเปลี่ยนสีถมดำเมื่อเปิด PO แล้ว")
+                    # ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
+                    c_code = c_code.lstrip('0')
+                    # -------------------------------------------------------------
 
-        cm_data = load_control_mat()
-        if cm_data:
-            df_cm = pd.DataFrame(cm_data)
+                    c_code_upper = str(c_code).upper()
+                    if 'F' in c_code_upper:
+                        storage_loc = "MP03"
+                    elif 'R' in c_code_upper:
+                        storage_loc = "MP02"
+                    else:
+                        storage_loc = "MP02"
 
-            # --- ระบบ Auto-Deduction หักลบยอดรอส่ง ---
-            df_cm['Original_Inv_Qty'] = pd.to_numeric(df_cm['Original_Inv_Qty'], errors='coerce').fillna(0)
-            df_cm['GP_Qty'] = pd.to_numeric(df_cm['GP_Qty'], errors='coerce').fillna(0)
-            df_cm['Pending Mat (รอแมทเข้า)'] = df_cm['Original_Inv_Qty'] - df_cm['GP_Qty']
+                    mc_rows.append({
+                        "_Supplier": supp,
+                        "Item CD": c_code, 
+                        "Manufacturing loc. CD": "OS01",
+                        "BOM pattern": 1,
+                        "Lot No.": "*",
+                        "SERIAL No.": "",
+                        "MFG No.": "",
+                        "Sched. manufacturing finish date": "",
+                        "Actual manufacturing start date": mfg_start_date,
+                        "Actual manufacturing finish date": "",
+                        "Posting date": "",
+                        "Sched. manufacturing qty.": int(qty_val),
+                        "Actual manufacturing qty.": int(qty_val),
+                        "Completed": "",
+                        "Storage loc. CD": storage_loc,
+                        "Operation dept.": "PUS",
+                        "Responsible PIC": "",
+                        "Manufacturing note": "",
+                        "Line CD": "",
+                        "Defective reason CD": "",
+                        "Defective qty.": "",
+                        "Defective item yard": "",
+                        "Defective item rack No.": "",
+                        "Mold branch No.": "",
+                        "Number of cavities": "",
+                        "Shot count": "",
+                        "Shot wt.": "",
+                        "Spec. CD": ""
+                    })
 
-            display_cols = [
-                "Gate_Pass_No", "Casting_Code", "Description", "GP_Qty", "Unit_Price",
-                "Invoice_No", "Supplier", "Pending Mat (รอแมทเข้า)", "PO_Opened"
-            ]
-            df_display = df_cm[display_cols].copy()
+                df_all_mc = pd.DataFrame(mc_rows)
 
-            # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
-            def color_rows(row):
-                if row["PO_Opened"] == True:
-                    return ['background-color: #4A5568; color: white'] * len(row) # ถมสีดำ/เทาเข้ม
+                if not df_all_mc.empty:
+                    mo_suppliers = df_all_mc["_Supplier"].unique()
+                    st.markdown("### 📦 เลือกดาวน์โหลดไฟล์ MO ตามซัพพลายเออร์")
+
+                    dl_cols = st.columns(len(mo_suppliers))
+                    for i, supp_name in enumerate(mo_suppliers):
+                        df_supp = df_all_mc[df_all_mc["_Supplier"] == supp_name].drop(columns=["_Supplier"])
+
+                        with dl_cols[i]:
+                            st.info(f"**{supp_name}** (รวม {len(df_supp)} รายการ)")
+                            st.download_button(
+                                label=f"🚀 ดาวน์โหลด MO ของ {supp_name}",
+                                data=df_supp.to_csv(index=False).encode('utf-8-sig'),
+                                file_name=f"MO_Upload_{supp_name}_{st.session_state.iv_number.replace('/', '_')}.csv",
+                                mime="text/csv",
+                                key=f"dl_mo_{supp_name}"
+                            )
+
+                    st.markdown("---")
+                    st.markdown("### 👀 พรีวิวข้อมูลก่อนดาวน์โหลด")
+                    preview_vendor = st.selectbox("เลือกดูตัวอย่างข้อมูลของซัพพลายเออร์:", mo_suppliers)
+                    df_preview = df_all_mc[df_all_mc["_Supplier"] == preview_vendor].drop(columns=["_Supplier"])
+                    st.dataframe(df_preview, hide_index=True, use_container_width=True)
                 else:
-                    supp = str(row["Supplier"]).strip().upper()
-                    if supp == "TMY": return ['background-color: #FEFCBF; color: black'] * len(row) # สีเหลือง
-                    elif supp == "PLM": return ['background-color: #C6F6D5; color: black'] * len(row) # สีเขียว
-                    elif supp == "ALPS": return ['background-color: #FED7E2; color: black'] * len(row) # สีชมพู
-                    elif supp == "YGT": return ['background-color: #BEE3F8; color: black'] * len(row) # สีฟ้า
-                    return [''] * len(row)
-
-            st.markdown("##### 📝 ตารางรายการใบนำของออกทั้งหมด")
+                    st.warning("ยังไม่มีข้อมูลสำหรับออกไฟล์ MO")
+# --- TAB 4 ---
+with tab4:
+    st.subheader("🔍 ค้นหาประวัติการทำงานย้อนหลัง")
+    st.caption("ข้อมูลทั้งหมดถูกบันทึกไว้ในรูปแบบไฟล์ JSON")
+    
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            hist_data = json.load(f)
             
-            # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
-            edited_df = st.data_editor(
-                df_display.style.apply(color_rows, axis=1),
-                column_config={
-                    "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️", default=False),
-                    "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
-                    "Casting_Code": st.column_config.TextColumn("Code", disabled=True),
-                    "Description": st.column_config.TextColumn("Description", disabled=True),
-                    "GP_Qty": st.column_config.NumberColumn("Qty (PCS)", disabled=True),
-                    "Unit_Price": st.column_config.NumberColumn("Unit Price", disabled=True),
-                    "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
-                    "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
-                    "Pending Mat (รอแมทเข้า)": st.column_config.NumberColumn("Pending Mat ⏳", disabled=True)
-                },
-                hide_index=True,
-                use_container_width=True,
-                key="cm_editor"
-            )
-
-            if st.button("🔄 บันทึกการอัปเดตสถานะ PO"):
-                for i, r in edited_df.iterrows():
-                    cm_data[i]["PO_Opened"] = r["PO_Opened"]
-                save_control_mat(cm_data)
-                st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
-                st.rerun()
+        if hist_data:
+            df_hist = pd.DataFrame(hist_data)
+            
+            # สร้างช่องค้นหา
+            col_s1, col_s2, col_s3 = st.columns(3)
+            with col_s1:
+                search_part = st.text_input("🔍 ค้นหาด้วย Part No.")
+            with col_s2:
+                search_inv = st.text_input("🧾 ค้นหาด้วย เลข Invoice")
+            with col_s3:
+                search_supp = st.selectbox("🏢 กรองตามซัพพลายเออร์", ["ทั้งหมด"] + list(df_hist["Supplier"].unique()))
+            
+            # ระบบกรองข้อมูล
+            df_show = df_hist.copy()
+            if search_part:
+                df_show = df_show[df_show["Part_No"].str.contains(search_part, case=False, na=False)]
+            if search_inv:
+                df_show = df_show[df_show["Invoice_No"].str.contains(search_inv, case=False, na=False)]
+            if search_supp != "ทั้งหมด":
+                df_show = df_show[df_show["Supplier"] == search_supp]
                 
-            if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด"):
-                save_control_mat([])
-                st.rerun()
-
+            # แสดงผลตาราง
+            st.dataframe(df_show, hide_index=True, use_container_width=True)
+            st.info(f"📊 พบข้อมูลทั้งหมด {len(df_show)} รายการ")
         else:
-            st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")          
-else:
-    st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน")
+            st.warning("📭 ยังไม่มีประวัติการจัดสรรข้อมูล")
+    else:
+        st.error("⚠️ ไม่พบไฟล์ฐานข้อมูล (history_log.json)")
+# --- TAB 5 ---
+with tab5:
+    st.subheader("📊 ระบบติดตามวัตถุดิบควบคุม (Control Material Tracker)")
+    st.caption("ระบบคำนวณยอดหักลบอัตโนมัติ (Pending Mat) และติ๊กเพื่อสถานะเปลี่ยนสีถมดำเมื่อเปิด PO แล้ว")
+
+    cm_data = load_control_mat()
+    if cm_data:
+        df_cm = pd.DataFrame(cm_data)
+
+        # --- ระบบ Auto-Deduction หักลบยอดรอส่ง ---
+        df_cm['Original_Inv_Qty'] = pd.to_numeric(df_cm['Original_Inv_Qty'], errors='coerce').fillna(0)
+        df_cm['GP_Qty'] = pd.to_numeric(df_cm['GP_Qty'], errors='coerce').fillna(0)
+        df_cm['Pending Mat (รอแมทเข้า)'] = df_cm['Original_Inv_Qty'] - df_cm['GP_Qty']
+
+        display_cols = [
+            "Gate_Pass_No", "Casting_Code", "Description", "GP_Qty", "Unit_Price",
+            "Invoice_No", "Supplier", "Pending Mat (รอแมทเข้า)", "PO_Opened"
+        ]
+        df_display = df_cm[display_cols].copy()
+
+        # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
+        def color_rows(row):
+            if row["PO_Opened"] == True:
+                return ['background-color: #4A5568; color: white'] * len(row) # ถมสีดำ/เทาเข้ม
+            else:
+                supp = str(row["Supplier"]).strip().upper()
+                if supp == "TMY": return ['background-color: #FEFCBF; color: black'] * len(row) # สีเหลือง
+                elif supp == "PLM": return ['background-color: #C6F6D5; color: black'] * len(row) # สีเขียว
+                elif supp == "ALPS": return ['background-color: #FED7E2; color: black'] * len(row) # สีชมพู
+                elif supp == "YGT": return ['background-color: #BEE3F8; color: black'] * len(row) # สีฟ้า
+                return [''] * len(row)
+
+        st.markdown("##### 📝 ตารางรายการใบนำของออกทั้งหมด")
+        
+        # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
+        edited_df = st.data_editor(
+            df_display.style.apply(color_rows, axis=1),
+            column_config={
+                "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️", default=False),
+                "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
+                "Casting_Code": st.column_config.TextColumn("Code", disabled=True),
+                "Description": st.column_config.TextColumn("Description", disabled=True),
+                "GP_Qty": st.column_config.NumberColumn("Qty (PCS)", disabled=True),
+                "Unit_Price": st.column_config.NumberColumn("Unit Price", disabled=True),
+                "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
+                "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
+                "Pending Mat (รอแมทเข้า)": st.column_config.NumberColumn("Pending Mat ⏳", disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            key="cm_editor"
+        )
+
+        if st.button("🔄 บันทึกการอัปเดตสถานะ PO"):
+            for i, r in edited_df.iterrows():
+                cm_data[i]["PO_Opened"] = r["PO_Opened"]
+            save_control_mat(cm_data)
+            st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
+            st.rerun()
+            
+        if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด"):
+            save_control_mat([])
+            st.rerun()
+
+    else:
+        st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")          

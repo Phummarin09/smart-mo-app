@@ -1169,7 +1169,25 @@ with tab4:
             
         if hist_data:
             df_hist = pd.DataFrame(hist_data)
+           
             
+            # --- โค้ดส่วนที่ให้ก๊อปปี้ไปแทรกเพิ่ม (ปุ่มดาวน์โหลด Excel/CSV) ---
+            st.markdown("---")
+            st.markdown("#### 💾 สำรองข้อมูลประจำเดือน")
+
+            # แปลงข้อมูลเป็น CSV แบบรองรับภาษาไทย (เปิดใน Excel ได้เลย)
+            csv_data = df_hist.to_csv(index=False).encode('utf-8-sig')
+
+            col_btn1, col_btn2 = st.columns([1, 2])
+            with col_btn1:
+                st.download_button(
+                    label="📥 ดาวน์โหลดประวัติทั้งหมด (Excel)",
+                    data=csv_data,
+                    file_name=f"Backup_History_{pd.Timestamp.now().strftime('%Y_%m')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            # --------------------------------------------------------
             # สร้างช่องค้นหา
             col_s1, col_s2, col_s3 = st.columns(3)
             with col_s1:

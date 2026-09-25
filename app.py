@@ -621,7 +621,55 @@ if uploaded_file is not None:
         st.session_state.full_invoice_df = df_full
         st.session_state.iv_number = iv_num
         st.session_state.iv_date = iv_dt
+# ==========================================
+# --- เริ่มโค้ดส่วนเพิ่ม: ระบบค้นหาราคาแบบกลุ่ม ---
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔍 ผู้ช่วยค้นหาราคา (Bulk Price Lookup)")
 
+# 1. ให้เลือกซัพพลายเออร์
+lookup_vendor = st.sidebar.selectbox("เลือกซัพพลายเออร์เพื่อดึงราคา:", ["TMY", "PLM", "ALPS", "YGT"], key="lookup_vendor")
+
+# 2. ช่องวางข้อความ (รับข้อมูลได้ทีละหลายบรรทัด)
+lookup_text = st.sidebar.text_area("วางรหัส Item CD (บรรทัดละ 1 รหัส):", height=150, help="ก๊อปปี้คอลัมน์รหัสจากหน้าจอ ERP มาแปะเรียงกันตรงนี้ได้เลย")
+
+if st.sidebar.button("💡 ดึงราคา"):
+    if not lookup_text.strip():
+        st.sidebar.warning("กรุณาวางรหัสก่อนกดค้นหาค่ะ")
+    elif master_alloc is None:
+        st.sidebar.error("ไม่พบฐานข้อมูล Supplier_Allocation")
+    else:
+        # แยกข้อความที่แปะมาเป็นรายบรรทัด
+        search_items = [x.strip() for x in lookup_text.split('\n') if x.strip()]
+        
+        # กรอง Master Data เฉพาะซัพพลายเออร์ที่เลือก (ใช้ VENDOR_MAP แปลงชื่อย่อกลับเป็นชื่อเต็มแบบอัตโนมัติ)
+        df_vendor_alloc = master_alloc[
+            master_alloc["Supplier_Code"].map(VENDOR_MAP).fillna(master_alloc["Supplier_Code"]) == lookup_vendor
+        ]
+        
+        result_rows = []
+        for item in search_items:
+            # ปอกเลข 0 ข้างหน้าออกเพื่อความชัวร์เวลาค้นหา
+            item_clean = item.lstrip('0')
+            
+            # ค้นหาเทียบใน Casting_Code ก่อน ถ้าไม่เจอให้หาใน Item_Code
+            match = df_vendor_alloc[
+                (df_vendor_alloc["Casting_Code"].astype(str).str.strip().str.lstrip('0') == item_clean) |
+                (df_vendor_alloc["Item_Code"].astype(str).str.strip().str.lstrip('0') == item_clean)
+            ]
+            
+            if not match.empty:
+                # ดึง Purchase_Price ตัวแรกที่เจอ
+                price = match.iloc[0].get("Purchase_Price", "-")
+                result_rows.append({"Item CD": item, "Price (JPY)": price, "Status": "✅"})
+            else:
+                result_rows.append({"Item CD": item, "Price (JPY)": "-", "Status": "❌ ไม่พบ"})
+        
+        # แสดงผลลัพธ์เป็นตารางให้กวาดตามองง่ายๆ
+        res_df = pd.DataFrame(result_rows)
+        st.sidebar.success(f"พบราคา {len(res_df[res_df['Status'] == '✅'])} จากทั้งหมด {len(res_df)} รายการ")
+        st.sidebar.dataframe(res_df, hide_index=True, use_container_width=True)
+# ==========================================
 # 8. Top Header Banner
 st.markdown("""
 <div class="top-header">

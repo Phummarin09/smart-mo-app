@@ -948,16 +948,7 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 tot_gp_qty = sum(valid_qtys)
                 st.markdown(f"<h4 style='text-align:right;'>รวมจำนวนทั้งสิ้น: {tot_gp_qty} ชิ้น</h4>", unsafe_allow_html=True)
                 
-                gp_excel = create_gate_pass_excel(df_gp, target_vendor, gate_pass_no, delivery_date)
-                st.download_button(
-                    label=f"📄 ดาวน์โหลดใบนำของออก ({target_vendor}) เป็นไฟล์ Excel",
-                    data=gp_excel,
-                    file_name=f"GatePass_{target_vendor}_{gate_pass_no}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            else:
-                st.warning(f"ยังไม่มีรายการที่ระบุส่งไปยัง {target_vendor}")
-# ==========================================
+                # ==========================================
                 # --- เริ่มโค้ดส่วนเพิ่ม: ปุ่มบันทึกลง Control Material ---
                 # ==========================================
                 gp_excel = create_gate_pass_excel(df_gp, target_vendor, gate_pass_no, delivery_date)
@@ -1195,8 +1186,6 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
                 st.warning("📭 ยังไม่มีประวัติการจัดสรรข้อมูล")
         else:
             st.error("⚠️ ไม่พบไฟล์ฐานข้อมูล (history_log.json)")
-else:
-    st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน")
 # --- TAB 5 ---
     with tab5:
         st.subheader("📊 ระบบติดตามวัตถุดิบควบคุม (Control Material Tracker)")
@@ -1255,11 +1244,13 @@ else:
                     cm_data[i]["PO_Opened"] = r["PO_Opened"]
                 save_control_mat(cm_data)
                 st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
-                st.rerun() # รีเฟรชหน้าจอเพื่อให้สีเปลี่ยนทันที
+                st.rerun()
                 
-            if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด (เคลียร์หน้าจอ)"):
+            if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด"):
                 save_control_mat([])
                 st.rerun()
 
         else:
-            st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")    
+            st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")          
+else:
+    st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน")

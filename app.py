@@ -56,21 +56,24 @@ import pandas as pd # สำคัญ: เพิ่มบรรทัดนี�
 # --- สร้างท่อเชื่อมต่อกับ Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# แปะลิงก์ชีตของคุณรินตรงๆ ป้องกันบอทหลงทาง
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJtY5HcVO6AiWQMQ3J4MNdP_FEGj5p3pM/edit?gid=0#gid=0"
+
 # --- 1. ระบบจัดการประวัติ (History) ---
 def load_history():
     try:
-        # ttl=0 คือบังคับให้ระบบอ่านข้อมูลใหม่ล่าสุดจากชีตเสมอ
-        df = conn.read(worksheet="History", ttl=0).dropna(how="all")
+        # ใส่ spreadsheet=SHEET_URL ให้บอทรู้ว่าต้องไปดึงที่ไหน
+        df = conn.read(spreadsheet=SHEET_URL, worksheet="History", ttl=0).dropna(how="all")
         return df.to_dict('records')
     except:
         return []
 
 def save_history(data):
     df = pd.DataFrame(data) if data else pd.DataFrame()
-    conn.update(worksheet="History", data=df)
+    # ใส่ spreadsheet=SHEET_URL เวลากดบันทึกจะได้ไปถูกไฟล์
+    conn.update(spreadsheet=SHEET_URL, worksheet="History", data=df)
 
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJtY5HcVO6AiWQMQ3J4MNdP_FEGj5p3pM/edit?gid=0#gid=0"
-
+# --- 2. ระบบจัดการสต็อก (Control Material) ---
 def load_control_mat():
     df = conn.read(spreadsheet=SHEET_URL, worksheet="Control_Material", ttl=5)
     df = df.fillna("")

@@ -1283,7 +1283,7 @@ with tab5:
             use_container_width=True,
         )
 
-        if st.button("💾 บันทึกการอัปเดตสถานะ PO", key="save_po_tab5"):
+        if st.button("💾 บันทึกการอัปเดตสถานะ PO", key="btn_save_po_control_mat_final_999"):
             for i, r in edited_df.iterrows():
                 cm_data[i]["PO_Opened"] = r["PO_Opened"]
             save_control_mat(cm_data)

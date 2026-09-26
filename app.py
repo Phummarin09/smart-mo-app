@@ -1281,7 +1281,6 @@ with tab5:
             },
             hide_index=True,
             use_container_width=True,
-            key="cm_editor_v2"
         )
 
         if st.button("🔄 บันทึกการอัปเดตสถานะ PO"):

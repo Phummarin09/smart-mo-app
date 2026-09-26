@@ -71,11 +71,10 @@ def save_history(data):
 
 # --- 2. ระบบจัดการสต็อก (Control Material) ---
 def load_control_mat():
-    try:
-        df = conn.read(worksheet="Control_Material", ttl=0).dropna(how="all")
-        return df.to_dict('records')
-    except:
-        return []
+    # ลบระบบซ่อน Error (try-except) ออกไป เพื่อดูว่ามันแอบติดปัญหาอะไร
+    df = conn.read(worksheet="Control_Material", ttl=0)
+    df = df.fillna("")  # สั่งเคลียร์ค่าช่องว่าง ป้องกันระบบช็อก
+    return df.to_dict('records')
 
 def save_control_mat(data):
     df = pd.DataFrame(data) if data else pd.DataFrame()

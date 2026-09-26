@@ -79,6 +79,7 @@ def load_control_mat():
 
 def save_control_mat(data):
     df = pd.DataFrame(data) if data else pd.DataFrame()
+    df = df.fillna("")  # เพิ่มบรรทัดนี้! เพื่อแปลงค่าช่องว่าง (NaN) ไม่ให้ Google Sheets ช็อก
     conn.update(worksheet="Control_Material", data=df)
 # ==========================================
 #3. Backend Engine: Load Master Data

@@ -1131,13 +1131,12 @@ with tab3:
 # --- TAB 4 ---
 with tab4:
     st.subheader("🔍 ค้นหาประวัติการทำงานย้อนหลัง")
-    st.caption("ข้อมูลทั้งหมดถูกบันทึกไว้ในรูปแบบไฟล์ JSON")
-    
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            hist_data = json.load(f)
-            
-        if hist_data:
+    st.caption("ข้อมูลทั้งหมดถูกบันทึกไว้ใน Google Sheets (อัปเดตเรียลไทม์)")
+
+# โหลดข้อมูลประวัติจาก Google Sheets แทน
+    hist_data = load_history()
+
+    if hist_data:
             df_hist = pd.DataFrame(hist_data)
            
             
@@ -1179,10 +1178,9 @@ with tab4:
             # แสดงผลตาราง
             st.dataframe(df_show, hide_index=True, use_container_width=True)
             st.info(f"📊 พบข้อมูลทั้งหมด {len(df_show)} รายการ")
-        else:
-            st.warning("📭 ยังไม่มีประวัติการจัดสรรข้อมูล")
     else:
-        st.error("⚠️ ไม่พบไฟล์ฐานข้อมูล (history_log.json)")
+        st.warning("📭 ยังไม่มีประวัติการจัดสรรข้อมูล")
+    
 # --- TAB 5 ---
 with tab5:
     st.subheader("📊 ระบบติดตามวัตถุดิบควบคุม (Control Material Tracker)")

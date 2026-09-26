@@ -1234,15 +1234,19 @@ with tab5:
         df_display = df_cm[display_cols].copy()
 
         # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
+        # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
         def color_rows(row):
-            if row["PO_Opened"] == True:
+            # แปลงค่า PO_Opened ให้เป็นข้อความเพื่อเช็กคำว่า TRUE
+            po_status = str(row.get("PO_Opened", "")).strip().upper()
+            
+            if po_status == "TRUE" or row.get("PO_Opened") == True:
                 return ['background-color: #4A5568; color: white'] * len(row) # ถมสีดำ/เทาเข้ม
             else:
-                supp = str(row["Supplier"]).strip().upper()
-                if supp == "TMY": return ['background-color: #FEFCBF; color: black'] * len(row) # สีเหลือง
-                elif supp == "PLM": return ['background-color: #C6F6D5; color: black'] * len(row) # สีเขียว
-                elif supp == "ALPS": return ['background-color: #FED7E2; color: black'] * len(row) # สีชมพู
-                elif supp == "YGT": return ['background-color: #BEE3F8; color: black'] * len(row) # สีฟ้า
+                supp = str(row.get("Supplier", "")).strip().upper()
+                if supp == "TMY": return ['background-color: #FEFCBF; color: black'] * len(row)
+                elif supp == "PLM": return ['background-color: #C6F6D5; color: black'] * len(row)
+                elif supp == "ALPS": return ['background-color: #FED7E2; color: black'] * len(row)
+                elif supp == "YGT": return ['background-color: #BEE3F8; color: black'] * len(row)
                 return [''] * len(row)
 
         st.markdown("##### 📝 ตารางรายการใบนำของออกทั้งหมด")

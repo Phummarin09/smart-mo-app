@@ -57,7 +57,7 @@ import pandas as pd # สำคัญ: เพิ่มบรรทัดนี�
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # แปะลิงก์ชีตของคุณรินตรงๆ ป้องกันบอทหลงทาง
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJtY5HcVO6AiWQMQ3J4MNdP_FEGj5p3pM/edit?gid=0#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJtY5HcVO6AiWQMQ3J4MNdP_FEGj5p3pM/edit"
 
 # --- 1. ระบบจัดการประวัติ (History) ---
 def load_history():

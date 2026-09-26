@@ -69,7 +69,7 @@ def save_history(data):
     df = pd.DataFrame(data) if data else pd.DataFrame()
     conn.update(worksheet="History", data=df)
 
-SHEET_URL = "Citizen_Dashboard_DB"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJTy5HcVO6AiWQMQ3J4MNDp_FEGj5p3pM/edit"
 
 def load_control_mat():
     df = conn.read(spreadsheet=SHEET_URL, worksheet="Control_Material", ttl=5)

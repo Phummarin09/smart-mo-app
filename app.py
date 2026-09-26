@@ -71,7 +71,7 @@ def save_history(data):
 
 # --- 2. ระบบจัดการสต็อก (Control Material) ---
 # แปะลิงก์ชีตของคุณรินตรงๆ เพื่อป้องกันบอทหลงทาง
-SHEET_URL = "1anCnS5hksLBJTy5HcVO6AiWQMQ3J4MNDp_FEGj5p3pM"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJTy5HcVO6AiWQMQ3J4MNDp_FEGj5p3pM/edit"
 
 def load_control_mat():
     # เปลี่ยน ttl=0 เป็น ttl=5 (หน่วงเวลาจำข้อมูล 5 วินาที ลดการดึงข้อมูลซ้ำซ้อน)

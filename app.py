@@ -841,8 +841,37 @@ else:
 # ปุ่มสำหรับบันทึกประวัติลงฐานข้อมูล JSON
         st.markdown("---")
         if st.button("💾 ยืนยันการจัดสรรและบันทึกประวัติ"):
-            save_to_history_json(st.session_state.final_split_df, st.session_state.iv_number, st.session_state.iv_date)
-            st.success("✅ บันทึกประวัติการจัดสรรลงระบบเรียบร้อยแล้ว! สามารถตรวจสอบได้ที่ Tab 4")
+            import datetime
+            
+            # 1. โหลดประวัติเก่าจากชีตมาก่อน
+            existing_history = load_history()
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # 2. วนลูปคัดกรองเฉพาะรายการที่แบ่งยอดแล้วมาต่อท้าย
+            # 2. วนลูปคัดกรองเฉพาะรายการที่แบ่งยอดแล้วมาต่อท้าย
+            for _, r in st.session_state.final_split_df.iterrows():
+                supp = str(r.get("Supplier", "")).strip()
+                qty_str = str(r.get("Quantity (Allocated)", "")).strip()
+                
+                if supp and supp != "nan" and qty_str and qty_str != "nan":
+                    try:
+                        qty = int(float(qty_str))
+                        if qty > 0:
+                            existing_history.append({
+                                "Timestamp": now_str,
+                                "Invoice_No": st.session_state.iv_number,
+                                "Invoice_Date": st.session_state.iv_date,
+                                "Part_No": str(r.get("Part No.", "")),
+                                "Description": str(r.get("Description of goods", "")),
+                                "Supplier": supp,
+                                "Allocated_Qty": qty
+                            })
+                    except ValueError:
+                        pass
+            
+            # 3. เซฟกลับขึ้น Google Sheets
+            save_history(existing_history)
+            st.success("✅ บันทึกประวัติการจัดสรรลง Google Sheets เรียบร้อยแล้ว! สามารถตรวจสอบได้ที่ Tab 4")
     # --- TAB 2 ---
     with tab2:
         st.subheader("ขั้นตอนที่ 2: พรีวิวและดาวน์โหลดใบนำของออก (Outward Delivery Note)")

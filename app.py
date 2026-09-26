@@ -1234,14 +1234,14 @@ with tab5:
         df_display = df_cm[display_cols].copy()
 
         # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
-        # --- ระบบ Smart Color (แยกสีตามซัพพลายเออร์ และถมดำอัตโนมัติ) ---
         def color_rows(row):
-            # แปลงค่า PO_Opened ให้เป็นข้อความเพื่อเช็กคำว่า TRUE
-            po_status = str(row.get("PO_Opened", "")).strip().upper()
+            # ดึงค่า PO_Opened ออกมาเช็ก (ดักเผื่อไว้ทั้งแบบ 1, "1", True, "TRUE")
+            po_val = row.get("PO_Opened", False)
             
-            if po_status == "TRUE" or row.get("PO_Opened") == True:
+            if po_val in [1, "1", "1.0", True, "TRUE", "True"]:
                 return ['background-color: #4A5568; color: white'] * len(row) # ถมสีดำ/เทาเข้ม
             else:
+                # ถ้ายังไม่เปิด PO ให้ลงสีพาสเทลตาม Supplier
                 supp = str(row.get("Supplier", "")).strip().upper()
                 if supp == "TMY": return ['background-color: #FEFCBF; color: black'] * len(row)
                 elif supp == "PLM": return ['background-color: #C6F6D5; color: black'] * len(row)

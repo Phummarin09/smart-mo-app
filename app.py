@@ -1243,25 +1243,33 @@ with tab5:
                 return [''] * len(row)
 
         st.markdown("##### 📝 ตารางรายการใบนำของออกทั้งหมด")
-        
-        # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
-        # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
+      # --- 1. คลีนข้อมูลป้องกัน Error ชนิดข้อมูลชนกัน (PyArrow) ---
+        for col in df_display.columns:
+            if col != "PO_Opened":
+                # แปลงทุกอย่างเป็นข้อความ และเปลี่ยนค่าว่างให้ดูสะอาดตา
+                df_display[col] = df_display[col].astype(str).replace("nan", "")
+                
+        # บังคับให้คอลัมน์เปิด PO เป็นสถานะติ๊กถูก (True/False)
+        if "PO_Opened" in df_display.columns:
+            df_display["PO_Opened"] = df_display["PO_Opened"].astype(bool)
+
+        # --- 2. วาดตารางที่ผู้ใช้สามารถคลิก Checkbox ได้ ---
         edited_df = st.data_editor(
             df_display,
             column_config={
-                "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️", default=False),
+                "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️"),
                 "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
                 "Casting_Code": st.column_config.TextColumn("Code", disabled=True),
                 "Description": st.column_config.TextColumn("Description", disabled=True),
-                "GP_Qty": st.column_config.NumberColumn("Qty (PCS)", disabled=True),
-                "Unit_Price": st.column_config.NumberColumn("Unit Price", disabled=True),
+                "GP_Qty": st.column_config.TextColumn("Qty (PCS)", disabled=True),
+                "Unit_Price": st.column_config.TextColumn("Unit Price", disabled=True),
                 "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
                 "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
-                "Pending Mat (รอแมทเข้า)": st.column_config.NumberColumn("Pending Mat ⏳", disabled=True),
+                "Pending Mat (รอแมทเข้า)": st.column_config.TextColumn("Pending Mat ⏳", disabled=True),
             },
             hide_index=True,
             use_container_width=True,
-            key="cm_editor"
+            key="cm_editor_fix"
         )
 
         if st.button("🔄 บันทึกการอัปเดตสถานะ PO"):

@@ -1262,7 +1262,7 @@ with tab5:
 
         # --- 2. วาดตารางที่ผู้ใช้สามารถคลิก Checkbox ได้ ---
         edited_df = st.data_editor(
-            df_display,
+            df_display.style.apply(color_rows, axis=1),
             column_config={
                 "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️"),
                 "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),

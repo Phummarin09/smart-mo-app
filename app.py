@@ -1301,23 +1301,26 @@ with tab5:
     if cm_data_export:
         df_cm_export = pd.DataFrame(cm_data_export)
         
-        # 1. สร้างฟังก์ชันสำหรับใส่สีเงื่อนไข
+        # 1. สร้างฟังก์ชันสำหรับใส่สีเงื่อนไข (Excel)
         def style_excel(row):
             bg_color = 'white'
             font_color = 'black'
+
+            # ดึงค่า PO_Opened ออกมาเช็ก (ดักให้ครอบคลุมทั้งเลข 1 และคำว่า True)
+            po_val = row.get('PO_Opened', False)
             
-            # เงื่อนไขที่ 1: ถ้าติ๊กแล้ว (PO_Opened == TRUE) ให้พื้นหลังดำ ตัวหนังสือขาว
-            if str(row.get('PO_Opened', '')).upper() == 'TRUE':
-                bg_color = '#404040' # ใช้เทาดำ จะได้อ่านตัวหนังสือชัดเจนขึ้น
+            # เงื่อนไขที่ 1: ถ้าเปิด PO แล้ว (เลข 1 หรือ True) ให้ถมเทาเข้มเหมือนหน้าเว็บ
+            if po_val in [1, "1", "1.0", True, "TRUE", "True"]:
+                bg_color = '#4A5568' 
                 font_color = 'white'
             else:
-                # เงื่อนไขที่ 2: ถ้ายังไม่ติ๊ก ให้ใส่สีตามซัพพลายเออร์
+                # เงื่อนไขที่ 2: ถ้ายังไม่เปิด PO ให้ใส่สีพาสเทลให้ตรงกับหน้าเว็บเป๊ะๆ
                 supp = str(row.get('Supplier', '')).strip().upper()
-                if supp == 'TMY': bg_color = '#DDEBF7'   # สีฟ้าอ่อน
-                elif supp == 'YGT': bg_color = '#E2EFDA' # สีเขียวอ่อน
-                elif supp == 'ALPS': bg_color = '#FFF2CC'# สีเหลืองอ่อน
-                elif supp == 'PLM': bg_color = '#FCE4D6' # สีส้มอ่อน
-                    
+                if supp == 'TMY': bg_color = '#FEFCBF'   # สีเหลืองอ่อน
+                elif supp == 'PLM': bg_color = '#C6F6D5' # สีเขียวอ่อน
+                elif supp == 'ALPS': bg_color = '#FED7E2'# สีชมพูอ่อน
+                elif supp == 'YGT': bg_color = '#BEE3F8' # สีฟ้าอ่อน
+
             return [f'background-color: {bg_color}; color: {font_color}'] * len(row)
 
     # 2. นำฟังก์ชันสีไปฉาบลงบนตาราง DataFrame

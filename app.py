@@ -1264,7 +1264,7 @@ with tab5:
     for col in num_cols:
         if col in df_display.columns:
             # บังคับเป็นตัวเลข ถ้าเจอค่าว่างให้เป็น 0 แล้วแปลงเป็นจำนวนเต็ม (int)
-            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').fillna(0).astype(int)
+            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').fillna(0).astype(int).astype(str)
         # --- 2. วาดตารางที่ผู้ใช้สามารถคลิก Checkbox ได้ ---
         edited_df = st.data_editor(
             df_display.style.apply(color_rows, axis=1),

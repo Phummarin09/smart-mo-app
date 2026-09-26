@@ -1259,7 +1259,12 @@ with tab5:
         # บังคับให้คอลัมน์เปิด PO เป็นสถานะติ๊กถูก (True/False)
         if "PO_Opened" in df_display.columns:
             df_display["PO_Opened"] = df_display["PO_Opened"].astype(bool)
-
+        # --- บังคับแปลงคอลัมน์ตัวเลขให้เป็นจำนวนเต็ม (ตัด .0 ทิ้ง) ---
+    num_cols = ["Gate_Pass_No", "GP_Qty", "Unit_Price", "Pending Mat (รอแมทเข้า)"]
+    for col in num_cols:
+        if col in df_display.columns:
+            # บังคับเป็นตัวเลข ถ้าเจอค่าว่างให้เป็น 0 แล้วแปลงเป็นจำนวนเต็ม (int)
+            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').fillna(0).astype(int)
         # --- 2. วาดตารางที่ผู้ใช้สามารถคลิก Checkbox ได้ ---
         edited_df = st.data_editor(
             df_display.style.apply(color_rows, axis=1),

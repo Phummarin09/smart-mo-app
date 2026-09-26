@@ -1283,14 +1283,14 @@ with tab5:
             use_container_width=True,
         )
 
-        if st.button("🔄 บันทึกการอัปเดตสถานะ PO"):
+        if st.button("💾 บันทึกการอัปเดตสถานะ PO", key="save_po_tab5"):
             for i, r in edited_df.iterrows():
                 cm_data[i]["PO_Opened"] = r["PO_Opened"]
             save_control_mat(cm_data)
             st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
             st.rerun()
             
-        if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด"):
+        if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด", key="clear_data_tab5"):
             save_control_mat([])
             st.rerun()
 

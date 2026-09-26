@@ -50,66 +50,36 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-# --- JSON DATABASE ENGINE ---
-HISTORY_FILE = "history_log.json"
+from streamlit_gsheets import GSheetsConnection
+import pandas as pd # สำคัญ: เพิ่มบรรทัดนี้ไว้เผื่อยังไม่มีครับ
 
-# ตรวจสอบว่ามีไฟล์ประวัติหรือยัง ถ้ายังไม่มีให้สร้างไฟล์ว่างๆ ขึ้นมา
-if not os.path.exists(HISTORY_FILE):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump([], f)
+# --- สร้างท่อเชื่อมต่อกับ Google Sheets ---
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-def save_to_history_json(df, inv_no, inv_date):
-    # เปิดอ่านไฟล์ประวัติเดิม
-    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-        history_data = json.load(f)
-    
-    # ดึงเวลาปัจจุบัน
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # วนลูปนำรายการที่แบ่งยอดแล้วมาต่อท้าย
-    for _, r in df.iterrows():
-        supp = str(r.get("Supplier", "")).strip()
-        qty_str = str(r.get("Quantity (Allocated)", "")).strip()
-        
-        if supp and supp != "nan" and qty_str and qty_str != "nan":
-            try:
-                qty = int(float(qty_str))
-                if qty > 0:
-                    history_data.append({
-                        "Timestamp": now_str,
-                        "Invoice_No": inv_no,
-                        "Invoice_Date": inv_date,
-                        "Part_No": str(r["Part No."]),
-                        "Description": str(r["Description of goods"]),
-                        "Supplier": supp,
-                        "Allocated_Qty": qty
-                    })
-            except ValueError:
-                pass
-                
-    # เซฟกลับลงไฟล์
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history_data, f, ensure_ascii=False, indent=4)
-    # ==========================================
-# --- เริ่มโค้ดส่วนเพิ่ม: ระบบ Control Material (JSON) ---
-# ==========================================
-CONTROL_MAT_FILE = "control_material.json"
-if not os.path.exists(CONTROL_MAT_FILE):
-    with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:
-        json.dump([], f)
+# --- 1. ระบบจัดการประวัติ (History) ---
+def load_history():
+    try:
+        # ttl=0 คือบังคับให้ระบบอ่านข้อมูลใหม่ล่าสุดจากชีตเสมอ
+        df = conn.read(worksheet="History", ttl=0).dropna(how="all")
+        return df.to_dict('records')
+    except:
+        return []
 
+def save_history(data):
+    df = pd.DataFrame(data) if data else pd.DataFrame()
+    conn.update(worksheet="History", data=df)
+
+# --- 2. ระบบจัดการสต็อก (Control Material) ---
 def load_control_mat():
     try:
-        with open(CONTROL_MAT_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:
-            json.dump([], f)
+        df = conn.read(worksheet="Control_Material", ttl=0).dropna(how="all")
+        return df.to_dict('records')
+    except:
         return []
 
 def save_control_mat(data):
-    with open(CONTROL_MAT_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    df = pd.DataFrame(data) if data else pd.DataFrame()
+    conn.update(worksheet="Control_Material", data=df)
 # ==========================================
 #3. Backend Engine: Load Master Data
 @st.cache_data

@@ -1245,8 +1245,9 @@ with tab5:
         st.markdown("##### 📝 ตารางรายการใบนำของออกทั้งหมด")
         
         # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
+        # ตารางที่ผู้ใช้สามารถคลิก Checkbox ได้
         edited_df = st.data_editor(
-            df_display.style.apply(color_rows, axis=1),
+            df_display,
             column_config={
                 "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️", default=False),
                 "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
@@ -1256,7 +1257,7 @@ with tab5:
                 "Unit_Price": st.column_config.NumberColumn("Unit Price", disabled=True),
                 "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
                 "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
-                "Pending Mat (รอแมทเข้า)": st.column_config.NumberColumn("Pending Mat ⏳", disabled=True)
+                "Pending Mat (รอแมทเข้า)": st.column_config.NumberColumn("Pending Mat ⏳", disabled=True),
             },
             hide_index=True,
             use_container_width=True,

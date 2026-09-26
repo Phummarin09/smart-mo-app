@@ -69,16 +69,17 @@ def save_history(data):
     df = pd.DataFrame(data) if data else pd.DataFrame()
     conn.update(worksheet="History", data=df)
 
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1anCnS5hksLBJTy5HcVO6AiWQMQ3J4MNDp_FEGj5p3pM/edit"
+
 def load_control_mat():
-    # ลบ spreadsheet=... ออกได้เลย เพราะระบบจะไปดึงลิงก์จาก Secrets อัตโนมัติ
-    df = conn.read(worksheet="Control_Material", ttl=5)
+    df = conn.read(spreadsheet=SHEET_URL, worksheet="Control_Material", ttl=5)
     df = df.fillna("")
     return df.to_dict('records')
 
 def save_control_mat(data):
     df = pd.DataFrame(data) if data else pd.DataFrame()
     df = df.fillna("")
-    conn.update(worksheet="Control_Material", data=df)
+    conn.update(spreadsheet=SHEET_URL, worksheet="Control_Material", data=df)
 # ==========================================
 #3. Backend Engine: Load Master Data
 @st.cache_data

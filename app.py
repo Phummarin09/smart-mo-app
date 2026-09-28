@@ -787,26 +787,26 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 # ==========================================
-# 3. KPI Cards แบบ Modern UI (มีเอฟเฟกต์เมาส์ชี้ & ไอคอนมืออาชีพ)
+# 3. KPI Cards แบบ Modern UI (ล็อกความสูงเท่ากัน & แก้ไอคอน)
 # ==========================================
 
-# โหลดไอคอน FontAwesome และตั้งค่า CSS สำหรับการ์ด
+# อัปเดตเวอร์ชันไอคอนเป็น 6.4.0 และเพิ่มการล็อกความสูง (height)
 st.markdown("""
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
     /* สไตล์หลักของการ์ด */
     .kpi-card {
         background-color: white;
-        padding: 20px;
+        padding: 15px 15px;
         border-radius: 16px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         display: flex;
         align-items: center;
-        gap: 18px;
+        gap: 15px;
         border: 1px solid #f0f4f8;
-        transition: all 0.3s ease; /* ทำให้เกิดแอนิเมชันเวลาเอาเมาส์ชี้ */
+        transition: all 0.3s ease;
+        height: 130px; /* ล็อกความสูงทุกกล่องให้เท่ากันเป๊ะ */
     }
-    /* เอฟเฟกต์ลอยตัวตอนเอาเมาส์ไปชี้ (Hover) */
     .kpi-card:hover {
         transform: translateY(-6px);
         box-shadow: 0 12px 25px rgba(0, 68, 129, 0.15);
@@ -815,16 +815,16 @@ st.markdown("""
     
     /* กล่องใส่ไอคอน */
     .icon-box {
-        min-width: 55px;
-        height: 55px;
-        border-radius: 14px;
+        min-width: 50px;
+        height: 50px;
+        border-radius: 12px;
         display: flex;
         justify-content: center;
         align-items: center;
-        font-size: 22px;
+        font-size: 20px;
     }
     
-    /* ชุดสีไอคอนแต่ละกล่อง */
+    /* ชุดสีไอคอน */
     .bg-blue { background-color: #e3f2fd; color: #1976d2; }
     .bg-green { background-color: #e8f5e9; color: #2e7d32; }
     .bg-purple { background-color: #f3e5f5; color: #7b1fa2; }
@@ -832,11 +832,11 @@ st.markdown("""
     .bg-cyan { background-color: #e0f7fa; color: #0097a7; }
     
     /* การจัดตัวหนังสือ */
-    .kpi-title { color: #64748b; font-size: 13px; margin: 0; font-weight: 600; text-transform: uppercase; }
-    .kpi-value { color: #0f172a; margin: 4px 0; font-size: 26px; font-weight: 700; }
-    .kpi-unit { font-size: 14px; color: #94a3b8; font-weight: 400; }
-    .kpi-stat-up { color: #10b981; font-size: 12px; margin: 0; font-weight: 600; }
-    .kpi-stat-down { color: #ef4444; font-size: 12px; margin: 0; font-weight: 600; }
+    .kpi-title { color: #64748b; font-size: 12px; margin: 0; font-weight: 600; text-transform: uppercase; line-height: 1.3; }
+    .kpi-value { color: #0f172a; margin: 4px 0; font-size: 24px; font-weight: 700; }
+    .kpi-unit { font-size: 13px; color: #94a3b8; font-weight: 400; }
+    .kpi-stat-up { color: #10b981; font-size: 11px; margin: 0; font-weight: 600; }
+    .kpi-stat-down { color: #ef4444; font-size: 11px; margin: 0; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -848,7 +848,7 @@ with col1:
     <div class="kpi-card">
         <div class="icon-box bg-blue"><i class="fa-solid fa-box-open"></i></div>
         <div>
-            <p class="kpi-title">รับเข้า (Inbound)</p>
+            <p class="kpi-title">รับเข้า<br>(Inbound)</p>
             <h2 class="kpi-value">128 <span class="kpi-unit">รายการ</span></h2>
             <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 12% จากเดือนก่อน</p>
         </div>
@@ -860,7 +860,7 @@ with col2:
     <div class="kpi-card">
         <div class="icon-box bg-green"><i class="fa-solid fa-truck-fast"></i></div>
         <div>
-            <p class="kpi-title">จ่ายออก (Outbound)</p>
+            <p class="kpi-title">จ่ายออก<br>(Outbound)</p>
             <h2 class="kpi-value">96 <span class="kpi-unit">รายการ</span></h2>
             <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 8% จากเดือนก่อน</p>
         </div>
@@ -870,9 +870,9 @@ with col2:
 with col3:
     st.markdown("""
     <div class="kpi-card">
-        <div class="icon-box bg-purple"><i class="fa-solid fa-cubes-stacked"></i></div>
+        <div class="icon-box bg-purple"><i class="fa-solid fa-cubes"></i></div>
         <div>
-            <p class="kpi-title">สินค้าคงคลังรวม</p>
+            <p class="kpi-title">สินค้า<br>คงคลังรวม</p>
             <h2 class="kpi-value">4,832 <span class="kpi-unit">รายการ</span></h2>
             <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 5% จากเดือนก่อน</p>
         </div>
@@ -882,9 +882,9 @@ with col3:
 with col4:
     st.markdown("""
     <div class="kpi-card">
-        <div class="icon-box bg-orange"><i class="fa-solid fa-stopwatch"></i></div>
+        <div class="icon-box bg-orange"><i class="fa-solid fa-hourglass-half"></i></div>
         <div>
-            <p class="kpi-title">สินค้ารอจัดส่ง</p>
+            <p class="kpi-title">สินค้า<br>รอจัดส่ง</p>
             <h2 class="kpi-value">23 <span class="kpi-unit">รายการ</span></h2>
             <p class="kpi-stat-down"><i class="fa-solid fa-arrow-trend-down"></i> 18% จากเดือนก่อน</p>
         </div>
@@ -894,9 +894,9 @@ with col4:
 with col5:
     st.markdown("""
     <div class="kpi-card">
-        <div class="icon-box bg-cyan"><i class="fa-solid fa-file-circle-check"></i></div>
+        <div class="icon-box bg-cyan"><i class="fa-solid fa-clipboard-check"></i></div>
         <div>
-            <p class="kpi-title">อัตราความถูกต้อง</p>
+            <p class="kpi-title">อัตราความ<br>ถูกต้อง</p>
             <h2 class="kpi-value">99.3% <span class="kpi-unit"></span></h2>
             <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 0.5% จากเดือนก่อน</p>
         </div>

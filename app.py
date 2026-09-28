@@ -71,27 +71,28 @@ st.markdown("""
         border-radius: 6px;
         padding: 6px 16px;
     }
-    /* --- เปลี่ยน Radio Button เป็นปุ่มเมนูแบบบังคับ --- */
-    [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child {
+    /* --- ท่าไม้ตาย: เปลี่ยน Radio Button เป็นปุ่มเมนู --- */
+    .stRadio div[role="radiogroup"] > label > div:first-of-type {
         display: none !important; 
     }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label {
+    .stRadio div[role="radiogroup"] > label {
         padding: 10px 15px !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 5px !important;
         background-color: transparent !important;
         border-radius: 8px !important;
-        width: 100% !important;
         cursor: pointer !important;
+        width: 100% !important;
+        transition: 0.2s !important;
     }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] {
+    .stRadio div[role="radiogroup"] > label:hover {
+        background-color: #e6f0ff !important;
+    }
+    .stRadio div[role="radiogroup"] > label:has(input:checked) {
         background-color: #004481 !important;
     }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] p {
+    .stRadio div[role="radiogroup"] > label:has(input:checked) p {
         color: white !important;
         font-weight: bold !important;
-    }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-        background-color: #e6f0ff !important;
     }
     </style>
     """, unsafe_allow_html=True)

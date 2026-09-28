@@ -1266,33 +1266,33 @@ with tab5:
             # บังคับเป็นตัวเลข ถ้าเจอค่าว่างให้เป็น 0 แล้วแปลงเป็นจำนวนเต็ม (int)
             df_display[col] = pd.to_numeric(df_display[col], errors='coerce').fillna(0).astype(int).astype(str)
         # --- 2. วาดตารางที่ผู้ใช้สามารถคลิก Checkbox ได้ ---
-        edited_df = st.data_editor(
-            df_display.style.apply(color_rows, axis=1),
-            column_config={
-                "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️"),
-                "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
-                "Casting_Code": st.column_config.TextColumn("Code", disabled=True),
-                "Description": st.column_config.TextColumn("Description", disabled=True),
-                "GP_Qty": st.column_config.TextColumn("Qty (PCS)", disabled=True),
-                "Unit_Price": st.column_config.TextColumn("Unit Price", disabled=True),
-                "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
-                "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
-                "Pending Mat (รอแมทเข้า)": st.column_config.TextColumn("Pending Mat ⏳", disabled=True),
-            },
-            hide_index=True,
-            use_container_width=True,
-        )
+    edited_df = st.data_editor(
+        df_display.style.apply(color_rows, axis=1),
+        column_config={
+            "PO_Opened": st.column_config.CheckboxColumn("เปิด PO แล้ว ✔️"),
+            "Gate_Pass_No": st.column_config.TextColumn("GP No.", disabled=True),
+            "Casting_Code": st.column_config.TextColumn("Code", disabled=True),
+            "Description": st.column_config.TextColumn("Description", disabled=True),
+            "GP_Qty": st.column_config.TextColumn("Qty (PCS)", disabled=True),
+            "Unit_Price": st.column_config.TextColumn("Unit Price", disabled=True),
+            "Invoice_No": st.column_config.TextColumn("Invoice", disabled=True),
+            "Supplier": st.column_config.TextColumn("Supplier", disabled=True),
+            "Pending Mat (รอแมทเข้า)": st.column_config.TextColumn("Pending Mat ⏳", disabled=True),
+        },
+        hide_index=True,
+        use_container_width=True,
+    )
 
-        if st.button("💾 บันทึกการอัปเดตสถานะ PO", key="btn_save_po_control_mat_final_999"):
-            for i, r in edited_df.iterrows():
-                cm_data[i]["PO_Opened"] = r["PO_Opened"]
-            save_control_mat(cm_data)
-            st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
-            st.rerun()
-            
-        if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด", key="clear_data_tab5"):
-            save_control_mat([])
-            st.rerun()
+    if st.button("💾 บันทึกการอัปเดตสถานะ PO", key="btn_save_po_control_mat_final_999"):
+        for i, r in edited_df.iterrows():
+            cm_data[i]["PO_Opened"] = r["PO_Opened"]
+        save_control_mat(cm_data)
+        st.success("✅ อัปเดตสถานะเรียบร้อยแล้ว!")
+        st.rerun()
+        
+    if st.button("🗑️ ล้างข้อมูลประวัติ Control Material ทั้งหมด", key="clear_data_tab5"):
+        save_control_mat([])
+        st.rerun()
 
     else:
         st.info("📭 ยังไม่มีข้อมูลในระบบ (ข้อมูลจะเพิ่มอัตโนมัติเมื่อกดบันทึกลง Control Material ใน Tab 2)")          

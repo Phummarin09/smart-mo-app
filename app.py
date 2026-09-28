@@ -702,19 +702,25 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.markdown(f'<div class="metric-card" style="border-left-color:#319795;"><div class="metric-title">จำนวนชิ้นงานรวม</div><div class="metric-value">{total_pcs} <span style="font-size:0.85rem; color:#627d98;">Pcs</span></div></div>', unsafe_allow_html=True)
     with k4:
         st.markdown(f'<div class="metric-card" style="border-left-color:#805ad5;"><div class="metric-title">Invoice No.</div><div class="metric-value" style="font-size:1.1rem; padding-top:4px;">{st.session_state.iv_number}</div></div>', unsafe_allow_html=True)
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📋 1. ใบแจ้งหนี้พร้อมจัดสรร", 
-    "🚚 2. ใบนำของออก (Gate Pass)", 
-    "📄 3. ส่งออก (MC Frame MO)",
-    "🔍 4. ค้นหาประวัติ (Tracking History)",
-    "📊 5. Control Material"
-])
+# --- เมนูด้านซ้าย (Sidebar) ---
+with st.sidebar:
+    st.markdown("### 📋 CMA Menu")
+    selected_menu = st.radio(
+        "เลือกหน้าการทำงาน:",
+        [
+            "🧾 1. ใบแจ้งหนี้พร้อมจัดสรร",
+            "🚚 2. ใบนำของออก (Gate Pass)",
+            "📄 3. ส่งออก (MC Frame MO)",
+            "🔍 4. ค้นหาประวัติ (Tracking History)",
+            "📊 5. Control Material"
+        ]
+    )
 # --- เช็คว่ามีข้อมูล Invoice หรือยัง ---
 if "full_invoice_df" not in st.session_state or st.session_state.full_invoice_df.empty:
     st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน Tab 1, 2, 3")
 else: 
     # --- TAB 1 ---
-    with tab1:
+    if selected_menu == "🧾 1. ใบแจ้งหนี้พร้อมจัดสรร":
         st.subheader("ขั้นตอนที่ 1: ตรวจสอบและระบุซัพพลายเออร์")
         edited_df = st.data_editor(
             df_show,
@@ -876,7 +882,7 @@ else:
             save_history(existing_history)
             st.success("✅ บันทึกประวัติการจัดสรรลง Google Sheets เรียบร้อยแล้ว! สามารถตรวจสอบได้ที่ Tab 4")
     # --- TAB 2 ---
-    with tab2:
+    if selected_menu == "🚚 2. ใบนำของออก (Gate Pass)":
         st.subheader("ขั้นตอนที่ 2: พรีวิวและดาวน์โหลดใบนำของออก (Outward Delivery Note)")
         col_s1, col_s2, col_s3 = st.columns([1.5, 1.5, 1])
         with col_s1:
@@ -1001,7 +1007,7 @@ else:
                         st.success("✅ บันทึกเข้า Tab 5: Control Material สำเร็จแล้ว!")
                 # ==========================================
     # --- TAB 3 ---
-with tab3:
+if selected_menu == "📄 3. ส่งออก (MC Frame MO)":
         st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
         st.caption("(รูปแบบข้อมูลอิงตามไฟล์แม่แบบ PUS (กรอกเฉพาะคอลัมน์ที่จำเป็น))")
 
@@ -1161,7 +1167,7 @@ with tab3:
                 else:
                     st.warning("ยังไม่มีข้อมูลสำหรับออกไฟล์ MO")
 # --- TAB 4 ---
-with tab4:
+if selected_menu == "🔍 4. ค้นหาประวัติ (Tracking History)":
     st.subheader("🔍 ค้นหาประวัติการทำงานย้อนหลัง")
     st.caption("ข้อมูลทั้งหมดถูกบันทึกไว้ใน Google Sheets (อัปเดตเรียลไทม์)")
 
@@ -1214,7 +1220,7 @@ with tab4:
         st.warning("📭 ยังไม่มีประวัติการจัดสรรข้อมูล")
     
 # --- TAB 5 ---
-with tab5:
+if selected_menu == "📊 5. Control Material":
     st.subheader("📊 ระบบติดตามวัตถุดิบควบคุม (Control Material Tracker)")
     st.caption("ระบบคำนวณยอดหักลบอัตโนมัติ (Pending Mat) และติ๊กเพื่อสถานะเปลี่ยนสีถมดำเมื่อเปิด PO แล้ว")
 

@@ -71,26 +71,27 @@ st.markdown("""
         border-radius: 6px;
         padding: 6px 16px;
     }
-    /* วางโค้ดใหม่แทรกตรงนี้ครับ */
-    div[role="radiogroup"] > label > div:first-child {
-        display: none; 
+    /* --- เปลี่ยน Radio Button เป็นปุ่มเมนูแบบบังคับ --- */
+    [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child {
+        display: none !important; 
     }
-    div[role="radiogroup"] > label {
-        padding: 10px 15px;
-        margin-bottom: 5px;
-        background-color: transparent;
-        border-radius: 8px;
-        transition: all 0.3s ease;
+    [data-testid="stSidebar"] div[role="radiogroup"] > label {
+        padding: 10px 15px !important;
+        margin-bottom: 8px !important;
+        background-color: transparent !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+        cursor: pointer !important;
     }
-    div[role="radiogroup"] > label[data-checked="true"] {
-        background-color: #004481;
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] {
+        background-color: #004481 !important;
     }
-    div[role="radiogroup"] > label[data-checked="true"] p {
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] p {
         color: white !important;
-        font-weight: bold;
+        font-weight: bold !important;
     }
-    div[role="radiogroup"] > label:hover {
-        background-color: #e6f0ff;
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+        background-color: #e6f0ff !important;
     }
     </style>
     """, unsafe_allow_html=True)

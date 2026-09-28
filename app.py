@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+import base64
 import io
 import math
 import openpyxl
@@ -766,11 +767,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 2. ป้าย Header แบบมีภาพพื้นหลังและไล่เฉดสีทับ (Overlay)
-st.markdown("""
-<div style="background-image: url('https://images.unsplash.com/photo-1565514020179-026b92b84bb6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80'); background-size: cover; background-position: center; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); position: relative; overflow: hidden;">
-    <!-- เลเยอร์สีน้ำเงินทับภาพ (Overlay Gradient) -->
-    <div style="background: linear-gradient(90deg, rgba(0,34,71,0.95) 0%, rgba(0,68,129,0.85) 50%, rgba(0,114,206,0.4) 100%); padding: 35px 40px; position: relative; z-index: 1;">
+# 2. ป้าย Header แบบมีรูปตึก CMA (ปลอดภัย 100%)
+# ระบบตรวจสอบรูปภาพ: ถ้ายูสเซอร์มีรูปตึกชื่อ cma_building.jpg ให้โชว์รูป ถ้าไม่มีให้โชว์สีน้ำเงินเข้ม
+bg_style = "background: linear-gradient(135deg, #002b5e 0%, #004481 100%);" 
+if os.path.exists("cma_building.jpg"):
+    with open("cma_building.jpg", "rb") as img_file:
+        b64_string = base64.b64encode(img_file.read()).decode()
+    bg_style = f"background-image: url('data:image/jpeg;base64,{b64_string}'); background-size: cover; background-position: center;"
+
+st.markdown(f"""
+<div style="{bg_style} border-radius: 15px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); position: relative; overflow: hidden;">
+    <!-- เลเยอร์สีน้ำเงินทับภาพบางๆ เพื่อให้ตัวหนังสือโดดเด่น -->
+    <div style="background: linear-gradient(90deg, rgba(0,34,71,0.95) 0%, rgba(0,68,129,0.7) 50%, rgba(0,114,206,0.2) 100%); padding: 35px 40px; position: relative; z-index: 1;">
         <span style="background-color: #00bcd4; color: white; padding: 4px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; letter-spacing: 1px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">CITIZEN</span>
         <h1 style="color: white; margin: 15px 0 5px 0; font-size: 32px; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">CITIZEN MACHINERY ASIA</h1>
         <h2 style="color: #e6f0ff; margin: 0 0 10px 0; font-size: 20px; font-weight: 400; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">Integrated Inbound & Outward Management Hub</h2>

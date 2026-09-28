@@ -720,16 +720,62 @@ if st.sidebar.button("💡 ดึงราคา"):
         st.sidebar.success(f"พบราคา {len(res_df[res_df['Status'] == '✅'])} จากทั้งหมด {len(res_df)} รายการ")
         st.sidebar.dataframe(res_df, hide_index=True, use_container_width=True)
 # ==========================================
-# 8. Top Header Banner
-st.markdown("""
-<div class="top-header">
-    <div>
-        <h2>CITIZEN MACHINERY ASIA | Integrated Inbound & Outward Management Hub</h2>
-        <span>ระบบจัดการใบแจ้งหนี้สโตร์, ใบส่งของออก (Gate Pass) และส่งออก MO สำหรับ MC Frame</span>
+# ==========================================
+# 8. Top Header Banner & KPI Cards
+# ==========================================
+st.markdown("### 🏭 CITIZEN MACHINERY ASIA | Integrated Inbound & Outward Management Hub")
+st.markdown("ระบบจัดการวางแผนจัดซื้อ จัดเก็บ รับเข้าและจ่ายออก สินค้าแบบครบวงจร")
+st.markdown("<br>", unsafe_allow_html=True)
+
+# สร้าง 5 คอลัมน์สำหรับ KPI 5 กล่อง
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
+    st.markdown("""
+    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #2196F3;">
+        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">📦 รับเข้า (Inbound)</p>
+        <h2 style="color: #004481; margin: 0;">128 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
+        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 12% จากเดือนก่อน</p>
     </div>
-    <div style="font-weight:600; background:#2b6cb0; padding:4px 12px; border-radius:4px;">Factory CMATH</div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #4CAF50;">
+        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">🚚 จ่ายออก (Outbound)</p>
+        <h2 style="color: #004481; margin: 0;">96 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
+        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 8% จากเดือนก่อน</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+with col3:
+    st.markdown("""
+    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #9C27B0;">
+        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">📦 สินค้าคงคลังรวม</p>
+        <h2 style="color: #004481; margin: 0;">4,832 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
+        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 5% จากเดือนก่อน</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+with col4:
+    st.markdown("""
+    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #FF9800;">
+        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">⏳ สินค้ารอจัดส่ง</p>
+        <h2 style="color: #004481; margin: 0;">23 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
+        <p style="color: #F44336; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↓ 18% จากเดือนก่อน</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+with col5:
+    st.markdown("""
+    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #00BCD4;">
+        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">📄 อัตราความถูกต้อง</p>
+        <h2 style="color: #004481; margin: 0;">99.3% <span style="font-size: 14px; color: #888;"></span></h2>
+        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 0.5% จากเดือนก่อน</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
 # 9. Main Workflow Tabs
 if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_df.empty:

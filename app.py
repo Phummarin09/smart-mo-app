@@ -740,61 +740,99 @@ if st.sidebar.button("💡 ดึงราคา"):
         st.sidebar.dataframe(res_df, hide_index=True, use_container_width=True)
 # ==========================================
 # ==========================================
-# 8. Top Header Banner & KPI Cards
 # ==========================================
-st.markdown("### 🏭 CITIZEN MACHINERY ASIA | Integrated Inbound & Outward Management Hub")
-st.markdown("ระบบจัดการวางแผนจัดซื้อ จัดเก็บ รับเข้าและจ่ายออก สินค้าแบบครบวงจร")
-st.markdown("<br>", unsafe_allow_html=True)
+# 8. Top Header Banner & KPI Cards (สไตล์ Canva)
+# ==========================================
 
-# สร้าง 5 คอลัมน์สำหรับ KPI 5 กล่อง
+# 1. แต่งสีพื้นหลังเว็บและ Header ด้วย CSS
+st.markdown("""
+<style>
+    /* เปลี่ยนสีพื้นหลังทั้งหน้าเว็บให้เป็นสีฟ้าอ่อน/เทาอ่อน เหมือนใน Canva */
+    .stApp {
+        background-color: #f4f7f9; 
+    }
+    
+    /* ปรับระยะขอบด้านบนให้กระชับขึ้น */
+    .block-container {
+        padding-top: 2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 2. ป้าย Header สีน้ำเงินเข้มขอบมนสไตล์โมเดิร์น
+st.markdown("""
+<div style="background: linear-gradient(135deg, #004481 0%, #002b5e 100%); padding: 30px; border-radius: 15px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+    <span style="background-color: #ffffff33; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; letter-spacing: 1px;">CITIZEN</span>
+    <h1 style="color: white; margin: 15px 0 5px 0; font-size: 28px; font-weight: 700;">CITIZEN MACHINERY ASIA</h1>
+    <h2 style="color: #e6f0ff; margin: 0 0 12px 0; font-size: 20px; font-weight: 500;">Integrated Inbound & Outward Management Hub</h2>
+    <p style="color: #b3d4ff; font-size: 14px; margin: 0;">ระบบจัดการวางแผนจัดซื้อ จัดเก็บ รับเข้าและจ่ายออก สินค้าแบบครบวงจร</p>
+</div>
+""", unsafe_allow_html=True)
+
+# 3. สร้าง 5 คอลัมน์สำหรับ KPI (จัด Layout แบบ Flexbox ให้เหมือน Canva)
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #2196F3;">
-        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">📦 รับเข้า (Inbound)</p>
-        <h2 style="color: #004481; margin: 0;">128 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
-        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 12% จากเดือนก่อน</p>
+    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
+        <div style="background-color: #e3f2fd; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">📦</div>
+        <div>
+            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">รายการรับเข้า (Inbound)</p>
+            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">128 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
+            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 12% จากเดือนก่อน</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #4CAF50;">
-        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">🚚 จ่ายออก (Outbound)</p>
-        <h2 style="color: #004481; margin: 0;">96 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
-        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 8% จากเดือนก่อน</p>
+    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
+        <div style="background-color: #e8f5e9; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">🚚</div>
+        <div>
+            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">รายการจ่ายออก (Outbound)</p>
+            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">96 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
+            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 8% จากเดือนก่อน</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
 with col3:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #9C27B0;">
-        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">📦 สินค้าคงคลังรวม</p>
-        <h2 style="color: #004481; margin: 0;">4,832 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
-        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 5% จากเดือนก่อน</p>
+    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
+        <div style="background-color: #f3e5f5; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">🏢</div>
+        <div>
+            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">สินค้าคงคลังรวม</p>
+            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">4,832 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
+            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 5% จากเดือนก่อน</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
 with col4:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #FF9800;">
-        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">⏳ สินค้ารอจัดส่ง</p>
-        <h2 style="color: #004481; margin: 0;">23 <span style="font-size: 14px; color: #888;">รายการ</span></h2>
-        <p style="color: #F44336; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↓ 18% จากเดือนก่อน</p>
+    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
+        <div style="background-color: #fff3e0; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">⏱️</div>
+        <div>
+            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">สินค้ารอจัดส่ง</p>
+            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">23 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
+            <p style="color: #f44336; font-size: 11px; margin: 0; font-weight: 600;">↓ 18% จากเดือนก่อน</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
 with col5:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #00BCD4;">
-        <p style="color: #555; font-size: 14px; margin-bottom: 5px; font-weight: 600;">📄 อัตราความถูกต้อง</p>
-        <h2 style="color: #004481; margin: 0;">99.3% <span style="font-size: 14px; color: #888;"></span></h2>
-        <p style="color: #4CAF50; font-size: 12px; margin-top: 5px; margin-bottom: 0;">↑ 0.5% จากเดือนก่อน</p>
+    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
+        <div style="background-color: #e0f7fa; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">✅</div>
+        <div>
+            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">อัตราความถูกต้อง</p>
+            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">99.3% <span style="font-size: 12px; color: #888; font-weight: normal;"></span></h2>
+            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 0.5% จากเดือนก่อน</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown("<br><hr><br>", unsafe_allow_html=True)
+st.markdown("<br><hr style='border-top: 1px dashed #ccc;'><br>", unsafe_allow_html=True)
 
 # 9. Main Workflow Tabs
 if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_df.empty:

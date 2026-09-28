@@ -8,6 +8,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import json
+from streamlit_option_menu import option_menu
 # 1. Page Configuration
 st.set_page_config(
     page_title="CITIZEN | CMA Integrated Logistics & Gate Pass System",
@@ -26,16 +27,34 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     st.markdown("### 📋 เมนูหลัก")
-    selected_menu = st.radio(
-        "เลือกหน้าการทำงาน:",
-        [
+    # ใช้ option_menu แทน st.radio เดิม
+    selected_menu = option_menu(
+        menu_title=None, 
+        options=[
             "🧾 1. ใบแจ้งหนี้พร้อมจัดสรร",
             "🚚 2. ใบนำของออก (Gate Pass)",
             "📄 3. ส่งออก (MC Frame MO)",
             "🔍 4. ค้นหาประวัติ (Tracking History)",
             "📊 5. Control Material"
         ],
-        label_visibility="collapsed" 
+        icons=["", "", "", "", ""], 
+        default_index=0,
+        styles={
+            "container": {"padding": "0!important", "background-color": "transparent", "border": "none"},
+            "nav-link": {
+                "font-size": "14px", 
+                "text-align": "left", 
+                "margin": "5px 0px", 
+                "--hover-color": "#e6f0ff", 
+                "border-radius": "8px",
+                "color": "#333333"
+            },
+            "nav-link-selected": {
+                "background-color": "#004481", 
+                "color": "white", 
+                "font-weight": "bold"
+            },
+        }
     )
     
     st.markdown("---")

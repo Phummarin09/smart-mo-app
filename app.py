@@ -71,8 +71,30 @@ st.markdown("""
         border-radius: 6px;
         padding: 6px 16px;
     }
-</style>
-""", unsafe_allow_html=True)
+    /* วางโค้ดใหม่แทรกตรงนี้ครับ */
+    div[role="radiogroup"] > label > div:first-child {
+        display: none; 
+    }
+    div[role="radiogroup"] > label {
+        padding: 10px 15px;
+        margin-bottom: 5px;
+        background-color: transparent;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    div[role="radiogroup"] > label[data-checked="true"] {
+        background-color: #004481;
+    }
+    div[role="radiogroup"] > label[data-checked="true"] p {
+        color: white !important;
+        font-weight: bold;
+    }
+    div[role="radiogroup"] > label:hover {
+        background-color: #e6f0ff;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd # สำคัญ: เพิ่มบรรทัดนี้ไว้เผื่อยังไม่มีครับ
 

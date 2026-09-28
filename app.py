@@ -16,6 +16,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+# --- เมนูด้านซ้าย (Sidebar) ---
+with st.sidebar:
+    st.markdown("""
+        <h1 style='color: #004481; font-size: 24px; font-weight: bold; margin-bottom: 0px;'>CMA</h1>
+        <p style='color: #666; font-size: 12px; margin-top: -10px;'>Better Together</p>
+        <hr style='margin-top: 10px; margin-bottom: 20px;'>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### 📋 เมนูหลัก")
+    selected_menu = st.radio(
+        "เลือกหน้าการทำงาน:",
+        [
+            "🧾 1. ใบแจ้งหนี้พร้อมจัดสรร",
+            "🚚 2. ใบนำของออก (Gate Pass)",
+            "📄 3. ส่งออก (MC Frame MO)",
+            "🔍 4. ค้นหาประวัติ (Tracking History)",
+            "📊 5. Control Material"
+        ],
+        label_visibility="collapsed" 
+    )
+    
+    st.markdown("---")
 # 2. Industrial Theme CSS
 st.markdown("""
 <style>
@@ -702,19 +725,6 @@ if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_d
         st.markdown(f'<div class="metric-card" style="border-left-color:#319795;"><div class="metric-title">จำนวนชิ้นงานรวม</div><div class="metric-value">{total_pcs} <span style="font-size:0.85rem; color:#627d98;">Pcs</span></div></div>', unsafe_allow_html=True)
     with k4:
         st.markdown(f'<div class="metric-card" style="border-left-color:#805ad5;"><div class="metric-title">Invoice No.</div><div class="metric-value" style="font-size:1.1rem; padding-top:4px;">{st.session_state.iv_number}</div></div>', unsafe_allow_html=True)
-# --- เมนูด้านซ้าย (Sidebar) ---
-with st.sidebar:
-    st.markdown("### 📋 CMA Menu")
-    selected_menu = st.radio(
-        "เลือกหน้าการทำงาน:",
-        [
-            "🧾 1. ใบแจ้งหนี้พร้อมจัดสรร",
-            "🚚 2. ใบนำของออก (Gate Pass)",
-            "📄 3. ส่งออก (MC Frame MO)",
-            "🔍 4. ค้นหาประวัติ (Tracking History)",
-            "📊 5. Control Material"
-        ]
-    )
 # --- เช็คว่ามีข้อมูล Invoice หรือยัง ---
 if "full_invoice_df" not in st.session_state or st.session_state.full_invoice_df.empty:
     st.info("👈 กรุณาอัปโหลดไฟล์ Invoice ขาเข้า (.xlsx) ที่แถบด้านซ้าย เพื่อเริ่มใช้งาน Tab 1, 2, 3")

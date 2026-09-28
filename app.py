@@ -786,71 +786,124 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-# 3. สร้าง 5 คอลัมน์สำหรับ KPI (จัด Layout แบบ Flexbox ให้เหมือน Canva)
+# ==========================================
+# 3. KPI Cards แบบ Modern UI (มีเอฟเฟกต์เมาส์ชี้ & ไอคอนมืออาชีพ)
+# ==========================================
+
+# โหลดไอคอน FontAwesome และตั้งค่า CSS สำหรับการ์ด
+st.markdown("""
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+    /* สไตล์หลักของการ์ด */
+    .kpi-card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        border: 1px solid #f0f4f8;
+        transition: all 0.3s ease; /* ทำให้เกิดแอนิเมชันเวลาเอาเมาส์ชี้ */
+    }
+    /* เอฟเฟกต์ลอยตัวตอนเอาเมาส์ไปชี้ (Hover) */
+    .kpi-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 25px rgba(0, 68, 129, 0.15);
+        border-color: #004481;
+    }
+    
+    /* กล่องใส่ไอคอน */
+    .icon-box {
+        min-width: 55px;
+        height: 55px;
+        border-radius: 14px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 22px;
+    }
+    
+    /* ชุดสีไอคอนแต่ละกล่อง */
+    .bg-blue { background-color: #e3f2fd; color: #1976d2; }
+    .bg-green { background-color: #e8f5e9; color: #2e7d32; }
+    .bg-purple { background-color: #f3e5f5; color: #7b1fa2; }
+    .bg-orange { background-color: #fff3e0; color: #e65100; }
+    .bg-cyan { background-color: #e0f7fa; color: #0097a7; }
+    
+    /* การจัดตัวหนังสือ */
+    .kpi-title { color: #64748b; font-size: 13px; margin: 0; font-weight: 600; text-transform: uppercase; }
+    .kpi-value { color: #0f172a; margin: 4px 0; font-size: 26px; font-weight: 700; }
+    .kpi-unit { font-size: 14px; color: #94a3b8; font-weight: 400; }
+    .kpi-stat-up { color: #10b981; font-size: 12px; margin: 0; font-weight: 600; }
+    .kpi-stat-down { color: #ef4444; font-size: 12px; margin: 0; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
+# สร้าง 5 คอลัมน์
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
-        <div style="background-color: #e3f2fd; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">📦</div>
+    <div class="kpi-card">
+        <div class="icon-box bg-blue"><i class="fa-solid fa-box-open"></i></div>
         <div>
-            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">รายการรับเข้า (Inbound)</p>
-            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">128 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
-            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 12% จากเดือนก่อน</p>
+            <p class="kpi-title">รับเข้า (Inbound)</p>
+            <h2 class="kpi-value">128 <span class="kpi-unit">รายการ</span></h2>
+            <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 12% จากเดือนก่อน</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
-        <div style="background-color: #e8f5e9; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">🚚</div>
+    <div class="kpi-card">
+        <div class="icon-box bg-green"><i class="fa-solid fa-truck-fast"></i></div>
         <div>
-            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">รายการจ่ายออก (Outbound)</p>
-            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">96 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
-            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 8% จากเดือนก่อน</p>
+            <p class="kpi-title">จ่ายออก (Outbound)</p>
+            <h2 class="kpi-value">96 <span class="kpi-unit">รายการ</span></h2>
+            <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 8% จากเดือนก่อน</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
 with col3:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
-        <div style="background-color: #f3e5f5; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">🏢</div>
+    <div class="kpi-card">
+        <div class="icon-box bg-purple"><i class="fa-solid fa-cubes-stacked"></i></div>
         <div>
-            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">สินค้าคงคลังรวม</p>
-            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">4,832 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
-            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 5% จากเดือนก่อน</p>
+            <p class="kpi-title">สินค้าคงคลังรวม</p>
+            <h2 class="kpi-value">4,832 <span class="kpi-unit">รายการ</span></h2>
+            <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 5% จากเดือนก่อน</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
 with col4:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
-        <div style="background-color: #fff3e0; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">⏱️</div>
+    <div class="kpi-card">
+        <div class="icon-box bg-orange"><i class="fa-solid fa-stopwatch"></i></div>
         <div>
-            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">สินค้ารอจัดส่ง</p>
-            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">23 <span style="font-size: 12px; color: #888; font-weight: normal;">รายการ</span></h2>
-            <p style="color: #f44336; font-size: 11px; margin: 0; font-weight: 600;">↓ 18% จากเดือนก่อน</p>
+            <p class="kpi-title">สินค้ารอจัดส่ง</p>
+            <h2 class="kpi-value">23 <span class="kpi-unit">รายการ</span></h2>
+            <p class="kpi-stat-down"><i class="fa-solid fa-arrow-trend-down"></i> 18% จากเดือนก่อน</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
 with col5:
     st.markdown("""
-    <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 15px; border: 1px solid #f0f0f0;">
-        <div style="background-color: #e0f7fa; min-width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 20px;">✅</div>
+    <div class="kpi-card">
+        <div class="icon-box bg-cyan"><i class="fa-solid fa-file-circle-check"></i></div>
         <div>
-            <p style="color: #555; font-size: 12px; margin: 0; font-weight: 600;">อัตราความถูกต้อง</p>
-            <h2 style="color: #111; margin: 2px 0; font-size: 22px; font-weight: 700;">99.3% <span style="font-size: 12px; color: #888; font-weight: normal;"></span></h2>
-            <p style="color: #4CAF50; font-size: 11px; margin: 0; font-weight: 600;">↑ 0.5% จากเดือนก่อน</p>
+            <p class="kpi-title">อัตราความถูกต้อง</p>
+            <h2 class="kpi-value">99.3% <span class="kpi-unit"></span></h2>
+            <p class="kpi-stat-up"><i class="fa-solid fa-arrow-trend-up"></i> 0.5% จากเดือนก่อน</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown("<br><hr style='border-top: 1px dashed #ccc;'><br>", unsafe_allow_html=True)
-
+st.markdown("<br><br>", unsafe_allow_html=True)
 # 9. Main Workflow Tabs
 if "full_invoice_df" in st.session_state and not st.session_state.full_invoice_df.empty:
     df_show = st.session_state.full_invoice_df.copy()

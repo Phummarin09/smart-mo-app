@@ -787,17 +787,16 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 # ==========================================
-# 3. KPI Cards แบบ Modern UI (ล็อกความสูงเท่ากัน & แก้ไอคอน)
+# 3. KPI Cards แบบ Modern UI (ขยายขนาดกล่องให้โปร่งขึ้น)
 # ==========================================
 
-# อัปเดตเวอร์ชันไอคอนเป็น 6.4.0 และเพิ่มการล็อกความสูง (height)
 st.markdown("""
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
     /* สไตล์หลักของการ์ด */
     .kpi-card {
         background-color: white;
-        padding: 15px 15px;
+        padding: 20px 15px; /* เพิ่มระยะขอบบน-ล่างให้กล่องดูอ้วนขึ้น */
         border-radius: 16px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         display: flex;
@@ -805,7 +804,7 @@ st.markdown("""
         gap: 15px;
         border: 1px solid #f0f4f8;
         transition: all 0.3s ease;
-        height: 130px; /* ล็อกความสูงทุกกล่องให้เท่ากันเป๊ะ */
+        height: 150px; /* ขยายความสูงจาก 130px เป็น 150px */
     }
     .kpi-card:hover {
         transform: translateY(-6px);
@@ -815,13 +814,13 @@ st.markdown("""
     
     /* กล่องใส่ไอคอน */
     .icon-box {
-        min-width: 50px;
-        height: 50px;
+        min-width: 55px; /* ขยายกรอบไอคอนนิดนึงให้สมดุลกับกล่อง */
+        height: 55px;
         border-radius: 12px;
         display: flex;
         justify-content: center;
         align-items: center;
-        font-size: 20px;
+        font-size: 22px;
     }
     
     /* ชุดสีไอคอน */
@@ -832,11 +831,11 @@ st.markdown("""
     .bg-cyan { background-color: #e0f7fa; color: #0097a7; }
     
     /* การจัดตัวหนังสือ */
-    .kpi-title { color: #64748b; font-size: 12px; margin: 0; font-weight: 600; text-transform: uppercase; line-height: 1.3; }
-    .kpi-value { color: #0f172a; margin: 4px 0; font-size: 24px; font-weight: 700; }
-    .kpi-unit { font-size: 13px; color: #94a3b8; font-weight: 400; }
-    .kpi-stat-up { color: #10b981; font-size: 11px; margin: 0; font-weight: 600; }
-    .kpi-stat-down { color: #ef4444; font-size: 11px; margin: 0; font-weight: 600; }
+    .kpi-title { color: #64748b; font-size: 13px; margin: 0; font-weight: 600; text-transform: uppercase; line-height: 1.3; }
+    .kpi-value { color: #0f172a; margin: 6px 0; font-size: 26px; font-weight: 700; }
+    .kpi-unit { font-size: 14px; color: #94a3b8; font-weight: 400; }
+    .kpi-stat-up { color: #10b981; font-size: 12px; margin: 0; font-weight: 600; }
+    .kpi-stat-down { color: #ef4444; font-size: 12px; margin: 0; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 

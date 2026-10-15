@@ -680,6 +680,7 @@ if uploaded_file is not None:
     if "full_invoice_df" not in st.session_state or st.sidebar.button("🔄 โหลดข้อมูลใหม่"):
         df_full, iv_num, iv_dt = parse_full_invoice(uploaded_file)
         st.session_state.full_invoice_df = df_full
+        st.session_state.final_split_df = df_full.copy()
         st.session_state.iv_number = iv_num
         st.session_state.iv_date = iv_dt
 # ==========================================
@@ -1099,8 +1100,11 @@ else:
             delivery_date = st.date_input("วันที่ส่งของ", value=datetime.date(2026, 9, 2))
             
         gatepass_items = []
-            # ใช้ final_split_df เพื่อสร้างรายการใบนำของออก
-        for i, r in st.session_state.final_split_df.iterrows():
+        # ใช้ final_split_df เพื่อสร้างรายการใบนำของออก (หรือ fallback เป็น full_invoice_df)
+        source_df_gp = st.session_state.get("final_split_df")
+        if source_df_gp is None or (isinstance(source_df_gp, pd.DataFrame) and source_df_gp.empty):
+            source_df_gp = st.session_state.get("full_invoice_df", pd.DataFrame())
+        for i, r in source_df_gp.iterrows():
                 supp_str = str(r.get("Supplier", ""))
                 try:
                     qty_val = float(str(r.get("Quantity (Allocated)", 0)).strip())
@@ -1212,166 +1216,172 @@ else:
                         save_control_mat(cm_logs)
                         st.success("✅ บันทึกเข้า Tab 5: Control Material สำเร็จแล้ว!")
                 # ==========================================
-    # --- TAB 3 ---
-if selected_menu == "📄 3. ส่งออก (MC Frame MO)":
-        st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
-        st.caption("(รูปแบบข้อมูลอิงตามไฟล์แม่แบบ PUS (กรอกเฉพาะคอลัมน์ที่จำเป็น))")
+        # --- TAB 3 ---
+if "3. ส่งออก" in selected_menu:
+    st.subheader("ขั้นตอนที่ 3: ส่งออกชุดข้อมูล MO สำหรับอัปโหลดเข้า MC Frame (แยกไฟล์ตามซัพพลายเออร์)")
+    st.caption("(รูปแบบข้อมูลอิงตามไฟล์แม่แบบ PUS (กรอกเฉพาะคอลัมน์ที่จำเป็น))")
 
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            default_start_date = pd.Timestamp.now().strftime("%d/%m/%Y 0:00")
-            mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
-        with col_d2:
-            mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="")
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        default_start_date = pd.Timestamp.now().strftime("%d/%m/%Y 0:00")
+        mfg_start_date = st.text_input("Actual manufacturing start date", value=default_start_date)
+    with col_d2:
+        mfg_finish_date = st.text_input("Sched. manufacturing finish date", value="")
 
-        def get_base_ui(s):
-            s_clean = str(s).strip().lstrip('0')
-            pts = s_clean.split('-')
-            if len(pts) >= 2:
-                return f"{pts[0]}-{pts[1]}"
-            return s_clean
+    def get_base_ui(s):
+        s_clean = str(s).strip().lstrip('0')
+        pts = s_clean.split('-')
+        if len(pts) >= 2:
+            return f"{pts[0]}-{pts[1]}"
+        return s_clean
 
-            mc_rows = []
-            for i, r in st.session_state.final_split_df.iterrows():
-                supp = str(r.get("Supplier", "")).strip()
+    # ดึงข้อมูลจาก final_split_df หรือ fallback เป็น full_invoice_df
+    target_df = st.session_state.get("final_split_df")
+    if target_df is None or (isinstance(target_df, pd.DataFrame) and target_df.empty):
+        target_df = st.session_state.get("full_invoice_df", pd.DataFrame())
 
-                qty_col = next((col for col in r.index if "Quantity" in str(col) and "Allocated" in str(col)), "Quantity (Allocated)")
-                qty_val_str = str(r.get(qty_col, "0")).strip()
-                try:
-                    qty_val = float(qty_val_str)
-                except ValueError:
-                    qty_val = 0
+    mc_rows = []
+    for i, r in target_df.iterrows():
+        supp = str(r.get("Supplier", "")).strip()
 
-                if supp and qty_val > 0:
-                    part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
-                    part = str(r.get(part_col, "")).strip()
+        qty_col = next((col for col in r.index if "Quantity" in str(col) and "Allocated" in str(col)), "Quantity (Allocated)")
+        qty_val_str = str(r.get(qty_col, "0")).strip()
+        try:
+            qty_val = float(qty_val_str)
+        except ValueError:
+            qty_val = 0
+
+        if supp and qty_val > 0:
+            part_col = next((col for col in r.index if "Part No" in str(col)), "Part No.")
+            part = str(r.get(part_col, "")).strip()
+            
+            c_code = part
+            
+            # 1. เช็ค "รหัสพิเศษ" (เช่น 1061F) จากช่อง Remark
+            remark_val = ""
+            for col in r.index:
+                if "remark" in str(col).lower():
+                    val = str(r[col]).strip()
+                    if val != "" and val.lower() != "nan":
+                        remark_val = val
+                        break
+                        
+            # ดักเคสพิเศษ 1034 ถ้าค้างในดรอปดาวน์
+            if not remark_val and supp == "TMY" and part.lstrip('0').startswith("615-1034"):
+                dropdown_key = f"tmy_choice_{i}"
+                if dropdown_key in st.session_state:
+                    remark_val = st.session_state[dropdown_key]
+
+            # --- 🧠 LOGIC ผสาน 3 แหล่งข้อมูลเข้าด้วยกัน ---
+            if remark_val:
+                c_code = remark_val
+            else:
+                if master_items is not None and master_alloc is not None:
+                    part_clean = part.lstrip('0')
+                    base_part = get_base_ui(part_clean)
                     
-                    c_code = part
+                    m = master_items[
+                        (master_items["Code_CMA"].astype(str).str.strip() == part) |
+                        (master_items["Code_CMA"].astype(str).str.lstrip('0') == part_clean) |
+                        (master_items["Item_Code"].astype(str).str.strip() == base_part)
+                    ]
                     
-                    # 1. เช็ค "รหัสพิเศษ" (เช่น 1061F) จากช่อง Remark
-                    remark_val = ""
-                    for col in r.index:
-                        if "remark" in str(col).lower():
-                            val = str(r[col]).strip()
-                            if val != "" and val.lower() != "nan":
-                                remark_val = val
-                                break
-                                
-                    # ดักเคสพิเศษ 1034 ถ้าค้างในดรอปดาวน์
-                    if not remark_val and supp == "TMY" and part.lstrip('0').startswith("615-1034"):
-                        dropdown_key = f"tmy_choice_{i}"
-                        if dropdown_key in st.session_state:
-                            remark_val = st.session_state[dropdown_key]
-
-                    # --- 🧠 LOGIC ขั้นสุดยอด: ผสาน 3 แหล่งข้อมูลเข้าด้วยกัน ---
-                    if remark_val:
-                        c_code = remark_val
-                    else:
-                        if master_items is not None and master_alloc is not None:
-                            part_clean = part.lstrip('0')
-                            base_part = get_base_ui(part_clean)
-                            
-                            m = master_items[
-                                (master_items["Code_CMA"].astype(str).str.strip() == part) |
-                                (master_items["Code_CMA"].astype(str).str.lstrip('0') == part_clean) |
-                                (master_items["Item_Code"].astype(str).str.strip() == base_part)
-                            ]
-                            
-                            if not m.empty:
-                                it_code = str(m.iloc[0]["Item_Code"]).strip()
-                                alloc = master_alloc[master_alloc["Item_Code"].astype(str).str.strip() == it_code]
-                                
-                                if not alloc.empty:
-                                    # 👉 เคสที่ 1: "โค้ดปกติที่ต้องรักษาหาง R/F" (ดึงจาก Supplier_Allocation)
-                                    mapped_supp = VENDOR_MAP.get(supp, supp) if 'VENDOR_MAP' in globals() else supp
-                                    vendor_alloc = alloc[(alloc["Supplier_Code"].astype(str).str.strip() == supp) | 
-                                                            (alloc["Supplier_Code"].astype(str).str.strip() == mapped_supp)]
-                                    if not vendor_alloc.empty:
-                                        c_code = str(vendor_alloc.iloc[0]["Casting_Code"])
-                                    else:
-                                        c_code = str(alloc.iloc[0]["Casting_Code"])
+                    if not m.empty:
+                        it_code = str(m.iloc[0]["Item_Code"]).strip()
+                        alloc = master_alloc[master_alloc["Item_Code"].astype(str).str.strip() == it_code]
+                        
+                        if not alloc.empty:
+                            # 👉 เคสที่ 1: "โค้ดปกติที่ต้องรักษาหาง R/F" (ดึงจาก Supplier_Allocation)
+                            mapped_supp = VENDOR_MAP.get(supp, supp) if 'VENDOR_MAP' in globals() else supp
+                            vendor_alloc = alloc[(alloc["Supplier_Code"].astype(str).str.strip() == supp) | 
+                                                 (alloc["Supplier_Code"].astype(str).str.strip() == mapped_supp)]
+                            if not vendor_alloc.empty:
+                                c_code = str(vendor_alloc.iloc[0]["Casting_Code"])
+                            else:
+                                c_code = str(alloc.iloc[0]["Casting_Code"])
+                        else:
+                            # 👉 เคสที่ 2: "โค้ดที่เปลี่ยนรูป เช่น 115 -> 123" (ดึงจาก Item_Master เพราะไม่มีใน Allocation)
+                            route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
+                            if route_col:
+                                m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
+                                if not m_vendor.empty:
+                                    c_code = str(m_vendor.iloc[0]["Casting_Group"])
                                 else:
-                                    # 👉 เคสที่ 2: "โค้ดที่เปลี่ยนรูป เช่น 115 -> 123" (ดึงจาก Item_Master เพราะไม่มีใน Allocation)
-                                    route_col = next((c for c in master_items.columns if "Route" in c or "Vend" in c), None)
-                                    if route_col:
-                                        m_vendor = m[m[route_col].astype(str).str.contains(supp, na=False, case=False)]
-                                        if not m_vendor.empty:
-                                            c_code = str(m_vendor.iloc[0]["Casting_Group"])
-                                        else:
-                                            c_code = str(m.iloc[0]["Casting_Group"])
-                                    else:
-                                        c_code = str(m.iloc[0]["Casting_Group"])
-                    
-                    # ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
-                    c_code = c_code.lstrip('0')
-                    # -------------------------------------------------------------
+                                    c_code = str(m.iloc[0]["Casting_Group"])
+                            else:
+                                c_code = str(m.iloc[0]["Casting_Group"])
+            
+            # ตัดเลข 0 ตัวหน้าสุดทิ้งเสมอ
+            c_code = c_code.lstrip('0')
+            # -------------------------------------------------------------
 
-                    c_code_upper = str(c_code).upper()
-                    if 'F' in c_code_upper:
-                        storage_loc = "MP03"
-                    elif 'R' in c_code_upper:
-                        storage_loc = "MP02"
-                    else:
-                        storage_loc = "MP02"
+            c_code_upper = str(c_code).upper()
+            if 'F' in c_code_upper:
+                storage_loc = "MP03"
+            elif 'R' in c_code_upper:
+                storage_loc = "MP02"
+            else:
+                storage_loc = "MP02"
 
-                    mc_rows.append({
-                        "_Supplier": supp,
-                        "Item CD": c_code, 
-                        "Manufacturing loc. CD": "OS01",
-                        "BOM pattern": 1,
-                        "Lot No.": "*",
-                        "SERIAL No.": "",
-                        "MFG No.": "",
-                        "Sched. manufacturing finish date": "",
-                        "Actual manufacturing start date": mfg_start_date,
-                        "Actual manufacturing finish date": "",
-                        "Posting date": "",
-                        "Sched. manufacturing qty.": int(qty_val),
-                        "Actual manufacturing qty.": int(qty_val),
-                        "Completed": "",
-                        "Storage loc. CD": storage_loc,
-                        "Operation dept.": "PUS",
-                        "Responsible PIC": "",
-                        "Manufacturing note": "",
-                        "Line CD": "",
-                        "Defective reason CD": "",
-                        "Defective qty.": "",
-                        "Defective item yard": "",
-                        "Defective item rack No.": "",
-                        "Mold branch No.": "",
-                        "Number of cavities": "",
-                        "Shot count": "",
-                        "Shot wt.": "",
-                        "Spec. CD": ""
-                    })
+            mc_rows.append({
+                "_Supplier": supp,
+                "Item CD": c_code, 
+                "Manufacturing loc. CD": "OS01",
+                "BOM pattern": 1,
+                "Lot No.": "*",
+                "SERIAL No.": "",
+                "MFG No.": "",
+                "Sched. manufacturing finish date": mfg_finish_date,
+                "Actual manufacturing start date": mfg_start_date,
+                "Actual manufacturing finish date": "",
+                "Posting date": "",
+                "Sched. manufacturing qty.": int(qty_val),
+                "Actual manufacturing qty.": int(qty_val),
+                "Completed": "",
+                "Storage loc. CD": storage_loc,
+                "Operation dept.": "PUS",
+                "Responsible PIC": "",
+                "Manufacturing note": "",
+                "Line CD": "",
+                "Defective reason CD": "",
+                "Defective qty.": "",
+                "Defective item yard": "",
+                "Defective item rack No.": "",
+                "Mold branch No.": "",
+                "Number of cavities": "",
+                "Shot count": "",
+                "Shot wt.": "",
+                "Spec. CD": ""
+            })
 
-                df_all_mc = pd.DataFrame(mc_rows)
+    df_all_mc = pd.DataFrame(mc_rows)
 
-                if not df_all_mc.empty:
-                    mo_suppliers = df_all_mc["_Supplier"].unique()
-                    st.markdown("### 📦 เลือกดาวน์โหลดไฟล์ MO ตามซัพพลายเออร์")
+    if not df_all_mc.empty:
+        mo_suppliers = df_all_mc["_Supplier"].unique()
+        st.markdown("### 📦 เลือกดาวน์โหลดไฟล์ MO ตามซัพพลายเออร์")
 
-                    dl_cols = st.columns(len(mo_suppliers))
-                    for i, supp_name in enumerate(mo_suppliers):
-                        df_supp = df_all_mc[df_all_mc["_Supplier"] == supp_name].drop(columns=["_Supplier"])
+        dl_cols = st.columns(len(mo_suppliers))
+        iv_filename_part = str(st.session_state.get("iv_number", "MO")).replace('/', '_')
+        for i, supp_name in enumerate(mo_suppliers):
+            df_supp = df_all_mc[df_all_mc["_Supplier"] == supp_name].drop(columns=["_Supplier"])
 
-                        with dl_cols[i]:
-                            st.info(f"**{supp_name}** (รวม {len(df_supp)} รายการ)")
-                            st.download_button(
-                                label=f"🚀 ดาวน์โหลด MO ของ {supp_name}",
-                                data=df_supp.to_csv(index=False).encode('utf-8-sig'),
-                                file_name=f"MO_Upload_{supp_name}_{st.session_state.iv_number.replace('/', '_')}.csv",
-                                mime="text/csv",
-                                key=f"dl_mo_{supp_name}"
-                            )
+            with dl_cols[i]:
+                st.info(f"**{supp_name}** (รวม {len(df_supp)} รายการ)")
+                st.download_button(
+                    label=f"🚀 ดาวน์โหลด MO ของ {supp_name}",
+                    data=df_supp.to_csv(index=False).encode('utf-8-sig'),
+                    file_name=f"MO_Upload_{supp_name}_{iv_filename_part}.csv",
+                    mime="text/csv",
+                    key=f"dl_mo_{supp_name}"
+                )
 
-                    st.markdown("---")
-                    st.markdown("### 👀 พรีวิวข้อมูลก่อนดาวน์โหลด")
-                    preview_vendor = st.selectbox("เลือกดูตัวอย่างข้อมูลของซัพพลายเออร์:", mo_suppliers)
-                    df_preview = df_all_mc[df_all_mc["_Supplier"] == preview_vendor].drop(columns=["_Supplier"])
-                    st.dataframe(df_preview, hide_index=True, use_container_width=True)
-                else:
-                    st.warning("ยังไม่มีข้อมูลสำหรับออกไฟล์ MO")
+        st.markdown("---")
+        st.markdown("### 👀 พรีวิวข้อมูลก่อนดาวน์โหลด")
+        preview_vendor = st.selectbox("เลือกดูตัวอย่างข้อมูลของซัพพลายเออร์:", mo_suppliers)
+        df_preview = df_all_mc[df_all_mc["_Supplier"] == preview_vendor].drop(columns=["_Supplier"])
+        st.dataframe(df_preview, hide_index=True, use_container_width=True)
+    else:
+        st.warning("ยังไม่มีข้อมูลสำหรับออกไฟล์ MO")
 # --- TAB 4 ---
 if selected_menu == "🔍 4. ค้นหาประวัติ (Tracking History)":
     st.subheader("🔍 ค้นหาประวัติการทำงานย้อนหลัง")

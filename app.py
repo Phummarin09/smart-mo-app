@@ -530,10 +530,10 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+9}'].font = font_bold_md
         ws[f'A{offset+9}'].alignment = Alignment(horizontal='left', vertical='center')
         
-        # แก้ไข 1: วันที่ไม่ต้องใส่ และขีดเส้นใต้ลากยาว
-        ws.merge_cells(f'B{offset+9}:D{offset+9}')
-        ws[f'B{offset+9}'] = ""  # ปล่อยว่าง
-        for col in ['B', 'C', 'D']:
+        # แก้ไข: หดเส้นใต้ให้เหลือแค่คอลัมน์ B ถึง C
+        ws.merge_cells(f'B{offset+9}:C{offset+9}')
+        ws[f'B{offset+9}'] = ""  
+        for col in ['B', 'C']:
             ws[f'{col}{offset+9}'].border = border_bottom
         
         ws[f'F{offset+9}'] = "No."
@@ -549,12 +549,12 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws[f'A{offset+11}'].font = font_bold_md
         ws[f'A{offset+11}'].alignment = Alignment(horizontal='left', vertical='center')
         
-        # แก้ไข 2: แก้ตกคอลัมน์ และขีดเส้นใต้
-        ws.merge_cells(f'B{offset+11}:D{offset+11}')
+        # แก้ไข: หดเส้นใต้ให้เหลือแค่คอลัมน์ B ถึง C
+        ws.merge_cells(f'B{offset+11}:C{offset+11}')
         ws[f'B{offset+11}'] = f"{vendor_name}"
         ws[f'B{offset+11}'].font = font_bold_lg
         ws[f'B{offset+11}'].alignment = Alignment(horizontal='left', vertical='center')
-        for col in ['B', 'C', 'D']:
+        for col in ['B', 'C']:
             ws[f'{col}{offset+11}'].border = border_bottom
 
         # --- Table Headers ---
@@ -635,8 +635,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ws.row_breaks.append(page_break)
 
     # --- Set Column Widths ---
-    ws.column_dimensions['A'].width = 10
-    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 12
     ws.column_dimensions['D'].width = 16
     ws.column_dimensions['E'].width = 24

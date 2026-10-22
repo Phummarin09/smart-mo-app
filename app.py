@@ -642,6 +642,11 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws.column_dimensions['E'].width = 24
     ws.column_dimensions['F'].width = 18
     ws.column_dimensions['G'].width = 24
+
+    import io
+    output = io.BytesIO()
+    wb.save(output)
+    return output.getvalue()
 # 7. Sidebar
 st.sidebar.markdown("### 📁 Data Sources")
 if master_items is not None:

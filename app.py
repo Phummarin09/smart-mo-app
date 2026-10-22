@@ -642,7 +642,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
 
     # --- Set Column Widths ---
     # ปรับให้ความกว้างรวมลดลงนิดหน่อย จะได้ไม่โดน Excel ย่อส่วนเยอะ
-    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['A'].width = 15
     ws.column_dimensions['B'].width = 32
     ws.column_dimensions['C'].width = 11
     ws.column_dimensions['D'].width = 16

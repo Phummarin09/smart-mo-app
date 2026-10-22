@@ -467,12 +467,11 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws.page_margins.header = 0.2
     ws.page_margins.footer = 0.2
 
-    # --- Styles ---
+   # --- Styles ---
     thin = Side(style='thin', color='000000')
     border_box = Border(left=thin, right=thin, top=thin, bottom=thin)
     border_bottom = Border(bottom=thin)
 
-    # เปลี่ยนฟอนต์ตามบรีฟใหม่
     font_company = Font(name='Bodoni MT Black', size=20, bold=True)
     font_address = Font(name='Arial', size=10)
     font_title = Font(name='Bodoni MT Black', size=18, bold=True)
@@ -529,26 +528,34 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws.row_dimensions[offset+9].height = 20
         ws[f'A{offset+9}'] = "Date (วันที่)"
         ws[f'A{offset+9}'].font = font_bold_md
-        ws[f'B{offset+9}'] = doc_date
-        ws[f'B{offset+9}'].font = font_normal_md
+        ws[f'A{offset+9}'].alignment = Alignment(horizontal='left', vertical='center')
+        
+        # แก้ไข 1: วันที่ไม่ต้องใส่ และขีดเส้นใต้ลากยาว
+        ws.merge_cells(f'B{offset+9}:D{offset+9}')
+        ws[f'B{offset+9}'] = ""  # ปล่อยว่าง
+        for col in ['B', 'C', 'D']:
+            ws[f'{col}{offset+9}'].border = border_bottom
         
         ws[f'F{offset+9}'] = "No."
         ws[f'G{offset+9}'] = current_gp_no
         ws[f'F{offset+9}'].font = font_bold_lg
-        ws[f'F{offset+9}'].alignment = Alignment(horizontal='right')
+        ws[f'F{offset+9}'].alignment = Alignment(horizontal='right', vertical='center')
         ws[f'G{offset+9}'].font = font_red_no
-        ws[f'G{offset+9}'].alignment = Alignment(horizontal='left')
+        ws[f'G{offset+9}'].alignment = Alignment(horizontal='left', vertical='center')
 
         # --- Info (Send To) ---
         ws.row_dimensions[offset+11].height = 20
         ws[f'A{offset+11}'] = "Send to(ส่งถึง)"
         ws[f'A{offset+11}'].font = font_bold_md
+        ws[f'A{offset+11}'].alignment = Alignment(horizontal='left', vertical='center')
+        
+        # แก้ไข 2: แก้ตกคอลัมน์ และขีดเส้นใต้
+        ws.merge_cells(f'B{offset+11}:D{offset+11}')
         ws[f'B{offset+11}'] = f"{vendor_name}"
         ws[f'B{offset+11}'].font = font_bold_lg
         ws[f'B{offset+11}'].alignment = Alignment(horizontal='left', vertical='center')
-
-        # ตัด Checkbox The purpose ออกตามบรีฟ 
-        # (ข้ามไปสร้างตารางเลย)
+        for col in ['B', 'C', 'D']:
+            ws[f'{col}{offset+11}'].border = border_bottom
 
         # --- Table Headers ---
         headers = [
@@ -561,7 +568,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ("G", "Remark\nคำอธิบาย")
         ]
         
-        # เลื่อนตารางขึ้นมาที่บรรทัด offset+13 (เพราะตัด Checkbox ออก)
         ws.row_dimensions[offset+13].height = 30
         for col, text in headers:
             c = ws[f'{col}{offset+13}']
@@ -574,7 +580,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         current_r = offset + 14
         for slot in range(20):
             row_num = current_r + slot
-            ws.row_dimensions[row_num].height = 20  # ปรับความสูงบรรทัดตาราง
+            ws.row_dimensions[row_num].height = 20
             
             data_idx = (p * 20) + slot
             if data_idx < records_count:
@@ -587,10 +593,12 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
                 ws[f'F{row_num}'] = r.get('Invoice No.', '')
                 ws[f'G{row_num}'] = str(r.get('Remark', '')).strip()
             else:
-                ws[f'A{row_num}'] = slot + 1
+                # แก้ไข 3: ถ้าไม่มีข้อมูล ปล่อยว่างไม่ต้องรันเลขลำดับ
+                ws[f'A{row_num}'] = "" 
                 for col in ["B", "C", "D", "E", "F", "G"]:
                     ws[f'{col}{row_num}'] = ""
 
+            # จัด Format ตัวหนังสือในตาราง
             ws[f'A{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
             ws[f'B{row_num}'].alignment = Alignment(horizontal='left', vertical='center')
             ws[f'C{row_num}'].alignment = Alignment(horizontal='center', vertical='center')
@@ -603,7 +611,7 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
                 ws[f'{col_l}{row_num}'].border = border_box
                 ws[f'{col_l}{row_num}'].font = font_normal_md
 
-        # --- Footer (ลายเซ็น) ---
+        # --- Footer ---
         footer_start = offset + 36
         
         ws.row_dimensions[footer_start].height = 30
@@ -622,8 +630,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         ws.merge_cells(f'A{footer_start+2}:C{footer_start+2}')
         ws.merge_cells(f'E{footer_start+2}:G{footer_start+2}')
         
-        # ตัดส่วนกล่อง doc_code CMA-FR-STS-01-02 ทิ้งตามแบบใหม่
-        
         if p < total_pages - 1:
             page_break = Break(id=offset+42)
             ws.row_breaks.append(page_break)
@@ -636,9 +642,6 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
     ws.column_dimensions['E'].width = 24
     ws.column_dimensions['F'].width = 18
     ws.column_dimensions['G'].width = 24
-    output = io.BytesIO()
-    wb.save(output)
-    return output.getvalue()
 # 7. Sidebar
 st.sidebar.markdown("### 📁 Data Sources")
 if master_items is not None:

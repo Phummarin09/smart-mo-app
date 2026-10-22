@@ -568,7 +568,9 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ("G", "Remark\nคำอธิบาย")
         ]
         
-        ws.row_dimensions[offset+13].height = 30
+        # 🔥 เพิ่มความสูงหัวตาราง
+        ws.row_dimensions[offset+13].height = 45 
+        
         for col, text in headers:
             c = ws[f'{col}{offset+13}']
             c.value = text
@@ -581,8 +583,8 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         for slot in range(20):
             row_num = current_r + slot
             
-            # 🔥 จุดที่ 1: ยืดความสูงของแต่ละบรรทัดให้กางออกพอดีหน้า A4
-            ws.row_dimensions[row_num].height = 27  
+            # 🔥 ดันความสูงบรรทัดให้เยอะขึ้นมากๆ (จาก 27 เป็น 38)
+            ws.row_dimensions[row_num].height = 38  
             
             data_idx = (p * 20) + slot
             if data_idx < records_count:
@@ -614,9 +616,9 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
         # --- Footer ---
         footer_start = offset + 36
         
-        # 🔥 จุดที่ 2: เพิ่มช่องว่างดันให้โซนลายเซ็นตกลงไปชิดขอบล่าง
-        ws.row_dimensions[footer_start-2].height = 25
-        ws.row_dimensions[footer_start-1].height = 25
+        # 🔥 เพิ่มช่องว่างเว้นระยะให้ลายเซ็นตกลงไปด้านล่าง
+        ws.row_dimensions[footer_start-2].height = 35
+        ws.row_dimensions[footer_start-1].height = 35
         
         ws.row_dimensions[footer_start].height = 30
         ws[f'A{footer_start}'] = "Return By (ผู้ส่ง) ........................................................"
@@ -639,26 +641,26 @@ def create_gate_pass_excel(df_records, vendor_name, gp_no, doc_date):
             ws.row_breaks.append(page_break)
 
     # --- Set Column Widths ---
-    ws.column_dimensions['A'].width = 16
-    ws.column_dimensions['B'].width = 30
-    ws.column_dimensions['C'].width = 12
+    # ปรับให้ความกว้างรวมลดลงนิดหน่อย จะได้ไม่โดน Excel ย่อส่วนเยอะ
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 32
+    ws.column_dimensions['C'].width = 11
     ws.column_dimensions['D'].width = 16
-    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['E'].width = 22
     ws.column_dimensions['F'].width = 18
-    ws.column_dimensions['G'].width = 24
+    ws.column_dimensions['G'].width = 22
 
-    # 🔥 จุดที่ 3: บังคับตั้งค่าหน้ากระดาษ Excel ให้ฟิตพอดี A4 เป๊ะๆ (Fit to 1 page)
+    # --- Page Setup ---
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
     ws.page_setup.fitToPage = True
     ws.page_setup.fitToHeight = 1
     ws.page_setup.fitToWidth = 1
     
-    # ปรับขอบกระดาษ (Margins) ให้พอดี ไม่เหลือที่ว่างเยอะ
     ws.page_margins.top = 0.5
     ws.page_margins.bottom = 0.5
-    ws.page_margins.left = 0.4
-    ws.page_margins.right = 0.4
+    ws.page_margins.left = 0.3
+    ws.page_margins.right = 0.3
 
     import io
     output = io.BytesIO()
